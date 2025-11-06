@@ -7,10 +7,10 @@ function libYukiMathOneDimensionalIntegration(f::Function, limitA::Measurement{F
     return Measurements.value(result) ± sqrt(Measurements.uncertainty(result) ^ 2 + Measurements.value(error) ^ 2 + Measurements.uncertainty(error) ^ 2);
 end
 
-# Calculate forward diffreence of function f on variation x.
+# Calculate forward difference of function f by variation x.
 # Dependency: Measurements, ForwardDiff.
-function libYukiMathForwardDifference(f::Function, x::Measurement{Float64})
-    ForwardDiff.derivative(f, x);
+function libYukiMathForwardDifference(f::Function, x::Measurement{Float64})::Measurement{Float64}
+    return ForwardDiff.derivative(x -> f(x), x);
 end
 
 # Calculate distance between position A to position B (vector A->B).
