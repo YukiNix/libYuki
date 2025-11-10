@@ -26,9 +26,14 @@ function libYukiPhysicsGravitationalNBodySimulation(timeStart::Measurement{Float
             for bodyBIndex::Int64 in 1 : bodiesNumber
                 if bodyAIndex != bodyBIndex
                     displacementBA::Vector{Measurement{Float64}} = separatedPositions[:, bodyAIndex] - separatedPositions[:, bodyBIndex];
-                    bodyAAcceleration += libYukiPhysicsPotentialAcceleration(
-                        x -> libYukiPhysicsGravitationalPotentialDifferentiable(gravitationalConstant, partical.masses[bodyBIndex], x),
-                        displacementBA);
+                    bodyAAcceleration += libYukiPhysicsForceAcceleration(
+                        libYukiPhysicsPotentialEnergyForce(
+                            x -> Measurements.value(partical.masses[bodyAIndex]) * libYukiPhysicsGravitationalPotentialDifferentiable(
+                                gravitationalConstant, 
+                                partical.masses[bodyBIndex], 
+                                x),
+                            displacementBA), 
+                        partical.masses[bodyAIndex]);
                 end
             end
             ∂velocity[(bodyAIndex - 1) * dimension + 1 : bodyAIndex * dimension] = bodyAAcceleration;
@@ -51,19 +56,25 @@ function libYukiPhysicsGravitationalNBodySimulation(timeStart::Measurement{Float
     return NBodySolution;
 end
 
-# Derive acceleration from potential. Displacement(source -> object).
+# Derive acceleration from mass. 
 # Dependency: Measurements.
-function libYukiPhysicsPotentialAcceleration(potentialFunction::Function, objectDisplacement::Vector{Measurement{Float64}})::Vector{Measurement{Float64}}
+function libYukiPhysicsForceAcceleration(force::Vector{Measurement{Float64}}, objectMass::Measurement{Float64})::Vector{Measurement{Float64}}
+    return force ./ objectMass;
+end
+
+# Derive force from potential energy at specified displacement. Displacement(source -> object).
+# Dependency: Measurements.
+function libYukiPhysicsPotentialEnergyForce(potentialEnergyFunction::Function, objectDisplacement::Vector{Measurement{Float64}})::Vector{Measurement{Float64}}
     displacementVectorMod::Measurement{Float64} = libYukiMathVectorToDistance(objectDisplacement);
-    return -libYukiMathForwardDifference(x -> potentialFunction(x), displacementVectorMod) .* objectDisplacement ./ displacementVectorMod;
+    return -libYukiMathForwardDifference(x -> potentialEnergyFunction(x), displacementVectorMod) .* objectDisplacement ./ displacementVectorMod;
 end
 
 # Calculate gravitational potential between source and object. Displacement(source -> object).
 # Dependency: Measurements.
-function libYukiPhysicsGravitationalPotential(gravitationalConstant::Measurement{Float64}, sourceMass::Measurement{Float64}, objectDisplacement::Measurement{Float64})::Measurement{Float64}
-    return -(gravitationalConstant * sourceMass) / objectDisplacement;
+function libYukiPhysicsGravitationalPotential(gravitationalConstant::Measurement{Float64}, sourceMass::Measurement{Float64}, objectDistance::Measurement{Float64})::Measurement{Float64}
+    return -(gravitationalConstant * sourceMass) / objectDistance;
 end
 # Differentiable version
-function libYukiPhysicsGravitationalPotentialDifferentiable(gravitationalConstant::Measurement{Float64}, sourceMass::Measurement{Float64}, objectDisplacement)
-    return -Measurements.value(gravitationalConstant * sourceMass) / objectDisplacement;
+function libYukiPhysicsGravitationalPotentialDifferentiable(gravitationalConstant::Measurement{Float64}, sourceMass::Measurement{Float64}, objectDistance)
+    return -Measurements.value(gravitationalConstant * sourceMass) / objectDistance;
 end
