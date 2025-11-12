@@ -6,19 +6,20 @@ include("libYukiMath.jl")
 
 mutable struct libYukiPhysicsBody
     name::String
-    position::Vector{Measurement{Float64}}
-    velocity::Vector{Measurement{Float64}}
+    position::Vector{Vector{Measurement{Float64}}}
+    velocity::Vector{Vector{Measurement{Float64}}}
     mass::Measurement{Float64}
     charge::Measurement{Float64}
     radius::Measurement{Float64}
-    libYukiPhysicsBody(name, position, velocity, mass, charge, radius) = new(name, position, velocity, mass, charge, radius)
+    libYukiPhysicsBody(name, position, velocity, mass, charge, radius) = new(name, [position], [velocity], mass, charge, radius)
 end
 
 function libYukiPhysicsGravitationalNBodySimulation(timeStart::Measurement{Float64}, timeEnd::Measurement{Float64}, timeStep::Measurement{Float64}, bodies::Vector{libYukiPhysicsBody}, integrator, gravitationalConstant::Measurement{Float64})
 
+    dimension::Int64 = 3;
+    bodiesNumber::Int64 = length(bodies);
+
     function libYukiPhysicsGravitationalNBodySimulationAcceleration!(∂velocity::Vector{Measurement{Float64}}, velocity::Vector{Measurement{Float64}}, position::Vector{Measurement{Float64}}, partical, time::Measurement{Float64})
-        bodiesNumber::Int64 = length(partical.masses);
-        dimension::Int64 = 3;
         separatedPositions = reshape(position, dimension, bodiesNumber);
         ∂velocity .= 0.0 ± 0.0;
         for bodyAIndex::Int64 in 1 : bodiesNumber
@@ -41,8 +42,8 @@ function libYukiPhysicsGravitationalNBodySimulation(timeStart::Measurement{Float
     end
 
     masses::Vector{Measurement{Float64}} = map(x -> x.mass, bodies);
-    velocities::Vector{Measurement{Float64}} = [body.velocity[dimension] for body in bodies for dimension in 1 : 3];
-    positions::Vector{Measurement{Float64}} = [body.position[dimension] for body in bodies for dimension in 1 : 3];
+    velocities::Vector{Measurement{Float64}} = [body.velocity[1][dimensionIndex] for body in bodies for dimensionIndex in 1 : dimension];
+    positions::Vector{Measurement{Float64}} = [body.position[1][dimensionIndex] for body in bodies for dimensionIndex in 1 : dimension];
 
     NBodyProblem = SecondOrderODEProblem(
         libYukiPhysicsGravitationalNBodySimulationAcceleration!,
@@ -53,6 +54,14 @@ function libYukiPhysicsGravitationalNBodySimulation(timeStart::Measurement{Float
     );
     NBodySolution = solve(NBodyProblem, integrator, dt = timeStep);
 
+    simulatedSteps::Int64 = length(NBodySolution.u);
+    simulatedPositionMatrix = [reshape(NBodySolution.u[i][1 : bodiesNumber * dimension], dimension, bodiesNumber) for i in 1 : simulatedSteps];
+
+    for bodyIndex in 1 : bodiesNumber
+        bodies[bodyIndex].position = [[simulatedPositionMatrix[tIndex][dimIndex, bodyIndex] for dimIndex in 1 : dimension] for tIndex in 1 : simulatedSteps];
+        append!(bodies[bodyIndex].velocity, diff(bodies[bodyIndex].position) ./ diff(NBodySolution.t));
+    end
+ 
     return NBodySolution;
 end
 
