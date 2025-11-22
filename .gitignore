@@ -1,2 +1,3 @@
 .DS_Store
 julia/.DS_Store
+*.sync-conflict-*

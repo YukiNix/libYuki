@@ -4,6 +4,8 @@ include("libYukiBasic.jl")
 include("libYukiConstant.jl")
 include("libYukiMath.jl")
 
+# Physical object data structure
+# Dependency: Measurements
 mutable struct libYukiPhysicsBody
     name::String
     position::Vector{Vector{Measurement{Float64}}}
@@ -14,6 +16,8 @@ mutable struct libYukiPhysicsBody
     libYukiPhysicsBody(name, position, velocity, mass, charge, radius) = new(name, [position], [velocity], mass, charge, radius)
 end
 
+# Gravitational N-body simulation. 
+# Dependency: Measurements, libYukiMath
 function libYukiPhysicsGravitationalNBodySimulation(timeStart::Measurement{Float64}, timeEnd::Measurement{Float64}, timeStep::Measurement{Float64}, bodies::Vector{libYukiPhysicsBody}, integrator, gravitationalConstant::Measurement{Float64})
 
     dimension::Int64 = 3;

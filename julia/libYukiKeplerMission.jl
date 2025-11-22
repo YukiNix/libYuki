@@ -3,6 +3,15 @@ using HTTP, DataFrames, Dates, Tables, PyCall, Measurements, CSV, JLD2;
 include("libYukiBasic.jl")
 include("libYukiTransit.jl")
 
+# Kepler Time BJD REFI: BJD Time = Kepler Time + 2454833.0;
+const libYukiKeplerMissionBJDREFI::Float64 = 2454833.0;
+
+# Convert Time of Kepler Lightcurve to BJD.
+# Dependency: Measurements.
+function libYukiKeplerMissionConvertLightcurveTimeToBJD(time::Vector{Measurement{Float64}}, flux::Vector{Measurement{Float64}})
+	return time .+ libYukiKeplerMissionBJDREFI, flux;
+end
+
 # Convert Kepler planets list to convenient format with uncertainty.
 # Dependency: DataFrames, Measurements.
 function libYukiKeplerMissionConvertExoplanetInformation(keplerConfirmedPlanetsFrame)
@@ -105,7 +114,7 @@ end
 
 # Download Kepler lightcurve by LightKurve(from Python). 
 # Dependency: PyCall, HTTP, DataFrames, Dates, Measurements, Tables.
-function libYukiKeplerMissionDownloadLightCurve(stellarOriginalName, lightKurve)::Tuple{Vector{Measurement{Float64}}, Vector{Measurement{Float64}}}
+function libYukiKeplerMissionDownloadLightCurve(stellarOriginalName::String, lightKurve)::Tuple{Vector{Measurement{Float64}}, Vector{Measurement{Float64}}}
 	times::Vector{Measurement{Float64}} = [];
 	fluxes::Vector{Measurement{Float64}} = [];
 
@@ -123,8 +132,10 @@ function libYukiKeplerMissionDownloadLightCurve(stellarOriginalName, lightKurve)
 		println("\t#INFO:[" * string(now()) * "] Downloading " * string(index) * "/" * string(length(searchResult)) * " curve...");
 
 		try
-			kurve = result.download();
+			subTimes::Vector{Measurement{Float64}} = [];
+			subFluxes::Vector{Measurement{Float64}} = [];
 
+			kurve = result.download();
 			for (time, flux, flux_err, timecorr) in zip(kurve.time, kurve.flux, kurve.flux_err, kurve.timecorr)
 				try
 					realFlux = convert(Measurement{Float64}, flux[1] ± flux_err[1]);
@@ -132,12 +143,16 @@ function libYukiKeplerMissionDownloadLightCurve(stellarOriginalName, lightKurve)
 					if isnan(realFlux) || isnan(realTime)
 						continue;
 					end
-					append!(fluxes, realFlux);
-					append!(times, realTime);
+
+					append!(subTimes, realTime);
+					append!(subFluxes, realFlux);
 				catch err
 					println(err);
 				end
 			end
+			detrendedTime::Vector{Measurement{Float64}}, detrendedFluxes::Vector{Measurement{Float64}} = libYukiTransitDetrendByWotan(subTimes, subFluxes, 0. ± 0., 0. ± 0., 0. ± 0.);
+			append!(times, detrendedTime);
+			append!(fluxes, detrendedFluxes);
 		catch err
 			print("\t\t#ERRO: Curve download faild:");
 			println(err);
