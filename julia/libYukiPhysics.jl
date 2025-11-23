@@ -17,6 +17,28 @@ mutable struct libYukiPhysicsBody
     libYukiPhysicsBody(name, position, velocity, mass, charge, radius) = new(name, [position], [velocity], mass, charge, radius)
 end
 
+# Derive circular motion's angular velocity to velocity.
+# Dependency: Measurements.
+# TODO: Validate & Example. 
+function libYukiPhysicsCircularMotionAngularVelocityToVelocity(angularVelocity::Measurement{Float64}, orbitDisplacement::Vector{Measurement{Float64}})::Vector{Measurement{Float64}}
+    displacementQuantity::Measurement{Float64}, displacementAngle::Measurement{Float64} = libYukiMath2DVectorModAndAngle(orbitDisplacement);
+    return [-sin(displacementAngle), cos(displacementAngle)] .* libYukiPhysicsCircularMotionAngularVelocityToVelocityQuantity(angularVelocity, displacementQuantity);
+end
+
+# Derive circular motion's velocity quantity to angular velocity.
+# Dependency: Measurements.
+# TODO: Validate & Example.
+function libYukiPhysicsCircularMotionVelocityQuantityToAngularVelocity(velocityQuantity::Measurement{Float64}, orbitRadius::Measurement{Float64})::Measurement{Float64}
+    return velocityQuantity / orbitRadius;
+end
+
+# Derive circular motion's angular velocity to velocity quantity.
+# Dependency: Measurements.
+# TODO: Validate & Example.
+function libYukiPhysicsCircularMotionAngularVelocityToVelocityQuantity(angularVelocity::Measurement{Float64}, orbitRadius::Measurement{Float64})::Measurement{Float64}
+    return angularVelocity * orbitRadius;
+end
+
 # Gravitational N-body simulation. 
 # Dependency: Measurements, libYukiMath.
 # Example: True.
