@@ -5,7 +5,8 @@ include("libYukiConstant.jl")
 include("libYukiMath.jl")
 
 # Physical object data structure
-# Dependency: Measurements
+# Dependency: Measurements.
+# Example: True.
 mutable struct libYukiPhysicsBody
     name::String
     position::Vector{Vector{Measurement{Float64}}}
@@ -17,7 +18,8 @@ mutable struct libYukiPhysicsBody
 end
 
 # Gravitational N-body simulation. 
-# Dependency: Measurements, libYukiMath
+# Dependency: Measurements, libYukiMath.
+# Example: True.
 function libYukiPhysicsGravitationalNBodySimulation(timeStart::Measurement{Float64}, timeEnd::Measurement{Float64}, timeStep::Measurement{Float64}, bodies::Vector{libYukiPhysicsBody}, integrator, gravitationalConstant::Measurement{Float64})
 
     dimension::Int64 = 3;
@@ -71,12 +73,14 @@ end
 
 # Derive acceleration from mass. 
 # Dependency: Measurements.
+# Example: True.
 function libYukiPhysicsForceAcceleration(force::Vector{Measurement{Float64}}, objectMass::Measurement{Float64})::Vector{Measurement{Float64}}
     return force ./ objectMass;
 end
 
 # Derive force from potential energy at specified displacement. Displacement(source -> object).
 # Dependency: Measurements.
+# Example: True.
 function libYukiPhysicsPotentialEnergyForce(potentialEnergyFunction::Function, objectDisplacement::Vector{Measurement{Float64}})::Vector{Measurement{Float64}}
     displacementVectorMod::Measurement{Float64} = libYukiMathVectorToDistance(objectDisplacement);
     return -libYukiMathForwardDifference(x -> potentialEnergyFunction(x), displacementVectorMod) .* objectDisplacement ./ displacementVectorMod;
@@ -84,10 +88,12 @@ end
 
 # Calculate gravitational potential between source and object. Displacement(source -> object).
 # Dependency: Measurements.
+# Example: True.
 function libYukiPhysicsGravitationalPotential(gravitationalConstant::Measurement{Float64}, sourceMass::Measurement{Float64}, objectDistance::Measurement{Float64})::Measurement{Float64}
     return -(gravitationalConstant * sourceMass) / objectDistance;
 end
 # Differentiable version
+# Example: True.
 function libYukiPhysicsGravitationalPotentialDifferentiable(gravitationalConstant::Measurement{Float64}, sourceMass::Measurement{Float64}, objectDistance)
     return -Measurements.value(gravitationalConstant * sourceMass) / objectDistance;
 end

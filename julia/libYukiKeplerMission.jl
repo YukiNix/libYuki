@@ -8,12 +8,14 @@ const libYukiKeplerMissionBJDREFI::Float64 = 2454833.0;
 
 # Convert Time of Kepler Lightcurve to BJD.
 # Dependency: Measurements.
+# TODO: Validate & Example.
 function libYukiKeplerMissionConvertLightcurveTimeToBJD(time::Vector{Measurement{Float64}}, flux::Vector{Measurement{Float64}})
 	return time .+ libYukiKeplerMissionBJDREFI, flux;
 end
 
 # Convert Kepler planets list to convenient format with uncertainty.
 # Dependency: DataFrames, Measurements.
+# TODO: Validate & Example.
 function libYukiKeplerMissionConvertExoplanetInformation(keplerConfirmedPlanetsFrame)
 
 	convertedExoplanetInformationFrame = DataFrame(
@@ -83,6 +85,7 @@ end
 
 # Load Kepler confirmed planets list.
 # Dependency: JLD2.
+# TODO: Validate & Example.
 function libYukiKeplerMissionLoadConfirmedExoplanetInformation()
 	@load "KeplerComfirmedPlanets.jld2" keplerConfirmedPlanetsData;
 	return keplerConfirmedPlanetsData;
@@ -90,12 +93,14 @@ end
 
 # Save Kepler confirmed planets list.
 # Dependency: JLD2.
+# TODO: Validate & Example.
 function libYukiKeplerMissionSaveConfirmedExoplanetInformation(keplerConfirmedPlanetsData)
 	@save "KeplerComfirmedPlanets.jld2" keplerConfirmedPlanetsData;
 end
 
 # Get Kepler confirmed planets list from NASA Exoplanet Archive.
 # Dependency: HTTP, DataFrames, Dates, CSV.
+# TODO: Validate & Example.
 function libYukiKeplerMissionGetConfirmedExoplanetInfomation()
 	TAPBaseServiceURL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=";
     TAPDataTypes = "pl_name,hostname,sy_dist,sy_disterr1,sy_disterr2,pl_orbper,pl_orbpererr1,pl_orbpererr2,pl_orbsmax,pl_orbsmaxerr1,pl_orbsmaxerr2,pl_orbeccen,pl_orbeccenerr1,pl_orbeccenerr2,pl_rade,pl_radeerr1,pl_radeerr2,st_rad,st_raderr1,st_raderr2,pl_bmasse,pl_bmasseerr1,pl_bmasseerr2,pl_bmassprov,st_mass,st_masserr1,st_masserr2,st_teff,st_tefferr1,st_tefferr2,st_met,st_meterr1,st_meterr2,st_metratio,pl_orbincl,pl_orbinclerr1,pl_orbinclerr2,pl_tranmid,pl_tranmiderr1,pl_tranmiderr2,pl_tranmid_systemref";
@@ -114,6 +119,7 @@ end
 
 # Download Kepler lightcurve by LightKurve(from Python). 
 # Dependency: PyCall, HTTP, DataFrames, Dates, Measurements, Tables.
+# TODO: Validate & Example.
 function libYukiKeplerMissionDownloadLightCurve(stellarOriginalName::String, lightKurve)::Tuple{Vector{Measurement{Float64}}, Vector{Measurement{Float64}}}
 	times::Vector{Measurement{Float64}} = [];
 	fluxes::Vector{Measurement{Float64}} = [];
