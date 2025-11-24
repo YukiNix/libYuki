@@ -1,4 +1,4 @@
-using Measurements, ForwardDiff, DifferentialEquations, LinearAlgebra
+using Measurements, ForwardDiff, DifferentialEquations, LinearAlgebra, JLD2
 
 include("libYukiBasic.jl")
 include("libYukiConstant.jl")
@@ -39,10 +39,64 @@ function libYukiPhysicsCircularMotionAngularVelocityToVelocityQuantity(angularVe
     return angularVelocity * orbitRadius;
 end
 
+# Load streaming saved gravitational N-body simulation result. 
+# Dependency: Measurements, JLD2.
+# TODO: Validate & Example.
+function libYukiPhysicsGravitationalNBodySimulationStreamingLoad(savingDirectory::String)
+    splitIndex::Int64 = 0;
+    timesLoaded = nothing;
+    bodiesLoaded = nothing;
+    while ispath("$savingDirectory/libYukiPhysicsGravitationalNBodySimulationStreamingResult_$splitIndex.jld2")
+        @load "$savingDirectory/libYukiPhysicsGravitationalNBodySimulationStreamingResult_$splitIndex.jld2" times bodies
+        if !isnothing(timesLoaded)
+            append!(timesLoaded, times);
+            for bodiesIndex::Int64 in 1 : length(bodies)
+                append!(bodiesLoaded[bodiesIndex].velocity, bodies[bodiesIndex].velocity);
+                append!(bodiesLoaded[bodiesIndex].position, bodies[bodiesIndex].position);
+            end
+        else
+            timesLoaded = times;
+            bodiesLoaded = bodies;
+        end
+        splitIndex = splitIndex + 1;
+    end
+    return timesLoaded, bodiesLoaded;
+end
+
+# Gravitational N-body simulation (stream save to file). 
+# Dependency: Measurements, libYukiMath.
+# TODO: Validate & Example.
+function libYukiPhysicsGravitationalNBodySimulationStreaming(timeStart::Measurement{Float64}, timeEnd::Measurement{Float64}, timeStep::Measurement{Float64}, bodiesSimulation::Vector{libYukiPhysicsBody}, integrator, gravitationalConstant::Measurement{Float64}, savingDirectory::String, splitSteps::Int64)
+    splitIndex::Int64 = 0;
+    timesSimulation::Vector{Measurement{Float64}} = [];
+
+    timeSimulating::Measurement{Float64} = timeStart;
+    timeNext::Measurement{Float64} = timeSimulating + splitSteps * timeStep;
+    mkdir(savingDirectory);
+    while timeSimulating != timeNext + timeStep
+        bodiesSimulation = [ 
+            libYukiPhysicsBody(bodiesSimulation[bodyIndex].name, bodiesSimulation[bodyIndex].position[end], bodiesSimulation[bodyIndex].velocity[end], bodiesSimulation[bodyIndex].mass, bodiesSimulation[bodyIndex].charge, bodiesSimulation[bodyIndex].radius)
+            for bodyIndex::Int64 in 1 : length(bodiesSimulation)];
+        timesSimulation = libYukiPhysicsGravitationalNBodySimulation(libYukiConstantZero, timeNext - timeSimulating, timeStep, bodiesSimulation, integrator, gravitationalConstant) .+ timeSimulating;
+        timeSimulating = timeNext + timeStep;
+        timeNext = timeSimulating + (splitSteps * timeStep);
+        timeNext = (timeNext < timeEnd) ? timeNext : timeEnd;
+        function libYukiPhysicsGravitationalNBodySimulationStreamingAsyncSave!(timesSaving::Vector{Measurement{Float64}}, bodiesSaving::Vector{libYukiPhysicsBody}, savingDirectory::String, splitIndex::Int64)
+            times::Vector{Measurement{Float64}} = timesSaving;
+            bodies::Vector{libYukiPhysicsBody} = bodiesSaving;
+            # Threads.@spawn begin
+                @save "$savingDirectory/libYukiPhysicsGravitationalNBodySimulationStreamingResult_$splitIndex.jld2" times bodies
+            # end
+        end
+        libYukiPhysicsGravitationalNBodySimulationStreamingAsyncSave!(timesSimulation, bodiesSimulation, savingDirectory, splitIndex);
+        splitIndex = splitIndex + 1;
+    end
+end
+
 # Gravitational N-body simulation. 
 # Dependency: Measurements, libYukiMath.
 # Example: True.
-function libYukiPhysicsGravitationalNBodySimulation(timeStart::Measurement{Float64}, timeEnd::Measurement{Float64}, timeStep::Measurement{Float64}, bodies::Vector{libYukiPhysicsBody}, integrator, gravitationalConstant::Measurement{Float64})
+function libYukiPhysicsGravitationalNBodySimulation(timeStart::Measurement{Float64}, timeEnd::Measurement{Float64}, timeStep::Measurement{Float64}, bodies::Vector{libYukiPhysicsBody}, integrator, gravitationalConstant::Measurement{Float64})::Vector{Measurement{Float64}}
 
     dimension::Int64 = 3;
     bodiesNumber::Int64 = length(bodies);
@@ -70,8 +124,8 @@ function libYukiPhysicsGravitationalNBodySimulation(timeStart::Measurement{Float
     end
 
     masses::Vector{Measurement{Float64}} = map(x -> x.mass, bodies);
-    velocities::Vector{Measurement{Float64}} = [body.velocity[1][dimensionIndex] for body in bodies for dimensionIndex in 1 : dimension];
-    positions::Vector{Measurement{Float64}} = [body.position[1][dimensionIndex] for body in bodies for dimensionIndex in 1 : dimension];
+    velocities::Vector{Measurement{Float64}} = [body.velocity[end][dimensionIndex] for body in bodies for dimensionIndex in 1 : dimension];
+    positions::Vector{Measurement{Float64}} = [body.position[end][dimensionIndex] for body in bodies for dimensionIndex in 1 : dimension];
 
     NBodyProblem = SecondOrderODEProblem(
         libYukiPhysicsGravitationalNBodySimulationAcceleration!,
@@ -83,14 +137,21 @@ function libYukiPhysicsGravitationalNBodySimulation(timeStart::Measurement{Float
     NBodySolution = solve(NBodyProblem, integrator, dt = timeStep);
 
     simulatedSteps::Int64 = length(NBodySolution.u);
-    simulatedPositionMatrix = [reshape(NBodySolution.u[i][1 : bodiesNumber * dimension], dimension, bodiesNumber) for i in 1 : simulatedSteps];
+    simulatedVelocityMatrix = [reshape(NBodySolution.u[i][1 : bodiesNumber * dimension], dimension, bodiesNumber) for i in 1 : simulatedSteps];
+    simulatedPositionMatrix = [reshape(NBodySolution.u[i][bodiesNumber * dimension + 1 : 2 * bodiesNumber * dimension], dimension, bodiesNumber) for i in 1 : simulatedSteps];
 
     for bodyIndex in 1 : bodiesNumber
-        bodies[bodyIndex].position = [[simulatedPositionMatrix[tIndex][dimIndex, bodyIndex] for dimIndex in 1 : dimension] for tIndex in 1 : simulatedSteps];
-        append!(bodies[bodyIndex].velocity, diff(bodies[bodyIndex].position) ./ diff(NBodySolution.t));
+        bodies[bodyIndex].position = [
+            [simulatedPositionMatrix[tIndex][dimIndex, bodyIndex]
+            for dimIndex in 1 : dimension] 
+            for tIndex in 1 : simulatedSteps];
+        bodies[bodyIndex].velocity = [
+            [simulatedVelocityMatrix[tIndex][dimIndex, bodyIndex]
+            for dimIndex in 1 : dimension] 
+            for tIndex in 1 : simulatedSteps];
     end
  
-    return NBodySolution;
+    return NBodySolution.t;
 end
 
 # Derive acceleration from mass. 
