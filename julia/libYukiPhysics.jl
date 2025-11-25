@@ -73,20 +73,18 @@ function libYukiPhysicsGravitationalNBodySimulationStreaming(timeStart::Measurem
     timeSimulating::Measurement{Float64} = timeStart;
     timeNext::Measurement{Float64} = timeSimulating + splitSteps * timeStep;
     mkdir(savingDirectory);
-    while timeSimulating != timeNext + timeStep
+    while timeSimulating < timeEnd
+        timeNext = (timeNext < timeEnd) ? timeNext : timeEnd;
         bodiesSimulation = [ 
             libYukiPhysicsBody(bodiesSimulation[bodyIndex].name, bodiesSimulation[bodyIndex].position[end], bodiesSimulation[bodyIndex].velocity[end], bodiesSimulation[bodyIndex].mass, bodiesSimulation[bodyIndex].charge, bodiesSimulation[bodyIndex].radius)
             for bodyIndex::Int64 in 1 : length(bodiesSimulation)];
         timesSimulation = libYukiPhysicsGravitationalNBodySimulation(libYukiConstantZero, timeNext - timeSimulating, timeStep, bodiesSimulation, integrator, gravitationalConstant) .+ timeSimulating;
         timeSimulating = timeNext + timeStep;
         timeNext = timeSimulating + (splitSteps * timeStep);
-        timeNext = (timeNext < timeEnd) ? timeNext : timeEnd;
         function libYukiPhysicsGravitationalNBodySimulationStreamingAsyncSave!(timesSaving::Vector{Measurement{Float64}}, bodiesSaving::Vector{libYukiPhysicsBody}, savingDirectory::String, splitIndex::Int64)
             times::Vector{Measurement{Float64}} = timesSaving;
             bodies::Vector{libYukiPhysicsBody} = bodiesSaving;
-            # Threads.@spawn begin
-                @save "$savingDirectory/libYukiPhysicsGravitationalNBodySimulationStreamingResult_$splitIndex.jld2" times bodies
-            # end
+            @save "$savingDirectory/libYukiPhysicsGravitationalNBodySimulationStreamingResult_$splitIndex.jld2" times bodies
         end
         libYukiPhysicsGravitationalNBodySimulationStreamingAsyncSave!(timesSimulation, bodiesSimulation, savingDirectory, splitIndex);
         splitIndex = splitIndex + 1;
