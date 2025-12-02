@@ -5,12 +5,44 @@ include("libYukiConstant.jl")
 include("libYukiMath.jl");
 include("libYukiPhysics.jl");
 
-# # Derive angles between position and . 
-# # Dependency: Measurements, JLD2.
-# # TODO: Validate & Example.
-# function libYukiPhysicsNBodySimulationAngleBetweenPositionVector(position::Vector{Vector{Measurement{Float64}}}, vectorA::Vector{Measurement{Float64}})::Vector{Measurement{Float64}}
-# 	return map(x -> libYukiMathAngleBetweenVectors(x, vectorA), position);
-# end
+# Find angular crossing time by specified vector. 
+# Dependency: Measurements.
+# TODO: Validate & Example.
+function libYukiPhysicsNBodySimulationTimeRelativeAngleZeroCrossing(vectorA::Vector{Measurement{Float64}}, time::Vector{Measurement{Float64}}, position::Vector{Vector{Measurement{Float64}}})::Union{Vector{Measurement{Float64}}, Missing}
+	sortedTime::Vector{Measurement{Float64}}, sortedPosition::Vector{Vector{Measurement{Float64}}} = libYukiBasicSortElementsByOrderVector(time, position);
+	angles::Vector{Measurement{Float64}} = libYukiPhysicsNBodySimulationAngleBetweenPositionVector(vectorA, sortedPosition);
+
+	crossIndices = findall(x -> angles[x - 1] > angles[x] && angles[x + 1] > angles[x], 2 : length(angles) - 2);
+	if length(crossIndices) > 0
+		k0_0::Vector{Measurement{Float64}} = (angles[crossIndices] .- angles[crossIndices .- 1]) ./ (sortedTime[crossIndices] .- sortedTime[crossIndices .- 1]);
+		t0_0::Vector{Measurement{Float64}} = ((angles[crossIndices] .* sortedTime[crossIndices .- 1]) .- (angles[crossIndices .- 1] .* sortedTime[crossIndices])) ./ (angles[crossIndices] .- angles[crossIndices .- 1]);
+		nk0_1::Vector{Measurement{Float64}} = -angles[crossIndices .+ 1] ./ (sortedTime[crossIndices .+ 1] .- t0_0);
+		dk0mul::Vector{Measurement{Float64}} = k0_0 .* nk0_1;
+		dk0plus::Vector{Measurement{Float64}} = abs.(k0_0 .+ nk0_1);
+
+		k1_0::Vector{Measurement{Float64}} = (angles[crossIndices .+ 1] .- angles[crossIndices]) ./ (sortedTime[crossIndices .+ 1] .- sortedTime[crossIndices]);
+		t1_0::Vector{Measurement{Float64}} = ((angles[crossIndices .+ 1] .* sortedTime[crossIndices]) .- (angles[crossIndices] .* sortedTime[crossIndices .+ 1])) ./ (angles[crossIndices .+ 1] .- angles[crossIndices]);
+		nk1_1::Vector{Measurement{Float64}} = -angles[crossIndices .- 1] ./ (sortedTime[crossIndices .- 1] .- t1_0);
+		dk1mul::Vector{Measurement{Float64}} = k1_0 .* nk1_1;
+		dk1plus::Vector{Measurement{Float64}} = abs.(k1_0 .+ nk1_1);
+
+		t0::Vector{Measurement{Float64}} = map(x -> 
+				dk0mul[x] > 0 ? t1_0[x] : (
+				dk1mul[x] > 0 ? t0_0[x] : (
+				dk0plus[x] < dk1plus[x] ? t0_0[x] : t1_0[x]
+			)),
+			1 : length(k0_0));
+		return t0;
+	end
+	return missing;
+end
+
+# Derive angles between position and given vector. 
+# Dependency: Measurements, JLD2.
+# TODO: Validate & Example.
+function libYukiPhysicsNBodySimulationAngleBetweenPositionVector(vectorA::Vector{Measurement{Float64}}, position::Vector{Vector{Measurement{Float64}}})::Vector{Measurement{Float64}}
+	return map(x -> libYukiMathAngleBetweenVector(vectorA, x), position);
+end
 
 # Load streaming saved gravitational N-body simulation result. 
 # Dependency: Measurements, JLD2.

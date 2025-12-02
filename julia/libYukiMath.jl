@@ -1,14 +1,11 @@
 using Measurements, ForwardDiff, QuadGK, LinearAlgebra
 
-# Derive angle between two vectors.
+# Derive angle between two vectors, return [0, π].
 # Dependency: Measurements.
 # TODO: Validate & Example.
-function libYukiMathAngleBetweenVectors(vectorA::Vector{Measurement{Float64}}, vectorB::Vector{Measurement{Float64}})::Measurement{Float64}
+function libYukiMathAngleBetweenVector(vectorA::Vector{Measurement{Float64}}, vectorB::Vector{Measurement{Float64}})::Measurement{Float64}
 	return acos(libYukiMathVectorDotProduct(vectorA, vectorB) / (libYukiMathVectorQuantity(vectorA) * libYukiMathVectorQuantity(vectorB)));
 end
-# function libYukiMathAngleBetweenVectors(vectorA::Vector{Measurement{Float64}}, vectorsB::Vector{Vector{Measurement{Float64}}})::Vector{Measurement{Float64}}
-# 	return map(x -> libYukiMathAngleBetweenVectors(vectorA, x), vectorsB);
-# end
 
 # Derive unit vector from vector.
 # Dependency: Measurements.

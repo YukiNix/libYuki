@@ -1,5 +1,17 @@
 using Measurements
 
+# Sort elements by order vector (lower performance than libYukiBasicSort2VectorsByTheFirstOne).
+# Dependency: Measurements.
+# TODO: Validate & Example.
+function libYukiBasicSortElementsByOrderVector(orderVector, elementsVector)
+	if length(orderVector) != length(elementsVector)
+		error("ERR: libYuki Basic Sort Elements By Order Vector meets 2 different length vectors.")
+	else
+		sortedIndices::Vector{Int64} = sortperm(orderVector);
+		return orderVector[sortedIndices], elementsVector[sortedIndices];
+	end
+end
+
 # Sort 2 dimension vector by the 1st demension.
 # Dependency: Measurements.
 # TODO: Validate & Example.
