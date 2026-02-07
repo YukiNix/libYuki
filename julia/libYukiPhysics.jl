@@ -17,6 +17,13 @@ mutable struct libYukiPhysicsBody
 	libYukiPhysicsBody(name, position, velocity, mass, charge, radius) = new(name, [position], [velocity], mass, charge, radius)
 end
 
+# Kinetic energy of a body.
+# Dependency: Measurements.
+# TODO: Validate & Example.
+function libYukiPhysicsKineticEnergy(bodyMass::Measurement{Float64}, bodyVelocity::Vector{Measurement{Float64}})::Measurement{Float64}
+	return 0.5 * bodyMass * libYukiMathVectorQuantity(bodyVelocity .* bodyVelocity);
+end
+
 # Derive gravitational circular motion's orbit radius from source mass and angular velocity quantity.
 # Dependency: Measurements.
 # TODO: Validate & Example. 

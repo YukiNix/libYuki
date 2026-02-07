@@ -5,12 +5,44 @@ include("libYukiConstant.jl")
 include("libYukiMath.jl");
 include("libYukiPhysics.jl");
 
+# Calculate N-Body hamiltonian. 
+# Dependency: Measurements.
+# TODO: Validate & Example.
+function libYukiPhysicsNBodySimulationGravitationalHamiltonian(bodiesSimulation::Vector{libYukiPhysicsBody}, gravitationalConstant::Measurement{Float64})::Vector{Measurement{Float64}}
+	simulationStep::Int64 = length(bodiesSimulation[1].velocity);
+	for bodyLengthChecking::libYukiPhysicsBody in bodiesSimulation
+		simulationVelocitySteps::Int64 = length(bodyLengthChecking.velocity);
+		(simulationVelocitySteps == length(bodyLengthChecking.position) && simulationStep == simulationVelocitySteps) || error("Bodies simulation steps are not equal.")
+		simulationStep = simulationVelocitySteps;
+	end
+
+	bodiesNumber::Int64 = length(bodiesSimulation);
+	kineticEnergy::Vector{Measurement{Float64}} = zeros(Measurement{Float64}, simulationStep);
+	potentialEnergy::Vector{Measurement{Float64}} = zeros(Measurement{Float64}, simulationStep);
+	for stepIndex::Int64 in 1 : simulationStep
+		kineticEnergy[stepIndex] = sum(
+			libYukiPhysicsKineticEnergy(body.mass, body.velocity[stepIndex]) for body in bodiesSimulation
+		);
+		for bodyAIndex::Int64 in 1 : (bodiesNumber - 1)
+			for bodyBIndex::Int64 in (bodyAIndex + 1) : bodiesNumber
+				potentialEnergy[stepIndex] = potentialEnergy[stepIndex] + bodiesSimulation[bodyBIndex].mass * libYukiPhysicsGravitationalPotential(
+					gravitationalConstant,
+					bodiesSimulation[bodyAIndex].mass,
+					libYukiMathVectorQuantity(bodiesSimulation[bodyBIndex].position[stepIndex] .- bodiesSimulation[bodyAIndex].position[stepIndex])
+				);
+			end
+		end
+	end
+	
+    return kineticEnergy .+ potentialEnergy;
+end
+
 # Find angular crossing time by specified vector. 
 # Dependency: Measurements.
 # TODO: Validate & Example.
 function libYukiPhysicsNBodySimulationTimeRelativeAngleZeroCrossing(vectorA::Vector{Measurement{Float64}}, time::Vector{Measurement{Float64}}, position::Vector{Vector{Measurement{Float64}}})::Union{Vector{Measurement{Float64}}, Missing}
 	sortedTime::Vector{Measurement{Float64}}, sortedPosition::Vector{Vector{Measurement{Float64}}} = libYukiBasicSortElementsByOrderVector(time, position);
-	angles::Vector{Measurement{Float64}} = libYukiPhysicsNBodySimulationAngleBetweenPositionVector(vectorA, sortedPosition);
+	angles::Vector{Measurement{Float64}} = map(x -> libYukiMathAngleBetweenVector(vectorA, x), sortedPosition);
 
 	crossIndices = findall(x -> angles[x - 1] > angles[x] && angles[x + 1] > angles[x], 2 : length(angles) - 2);
 	if length(crossIndices) > 0
@@ -37,39 +69,8 @@ function libYukiPhysicsNBodySimulationTimeRelativeAngleZeroCrossing(vectorA::Vec
 	return missing;
 end
 
-# Derive angles between position and given vector. 
-# Dependency: Measurements, JLD2.
-# TODO: Validate & Example.
-function libYukiPhysicsNBodySimulationAngleBetweenPositionVector(vectorA::Vector{Measurement{Float64}}, position::Vector{Vector{Measurement{Float64}}})::Vector{Measurement{Float64}}
-	return map(x -> libYukiMathAngleBetweenVector(vectorA, x), position);
-end
-
-# Load streaming saved gravitational N-body simulation result. 
-# Dependency: Measurements, JLD2.
-# TODO: Validate & Example.
-function libYukiPhysicsNBodySimulationGravitationalStreamingLoad(savingDirectory::String)
-	splitIndex::Int64 = 1;
-	timesLoaded = nothing;
-	bodiesLoaded = nothing;
-	while ispath("$savingDirectory/libYukiPhysicsNBodySimulationGravitationalStreamingResult_$splitIndex.jld2")
-		@load "$savingDirectory/libYukiPhysicsNBodySimulationGravitationalStreamingResult_$splitIndex.jld2" times bodies
-		if !isnothing(timesLoaded)
-			append!(timesLoaded, times);
-			for bodiesIndex::Int64 in 1 : length(bodies)
-				append!(bodiesLoaded[bodiesIndex].velocity, bodies[bodiesIndex].velocity);
-				append!(bodiesLoaded[bodiesIndex].position, bodies[bodiesIndex].position);
-			end
-		else
-			timesLoaded = times;
-			bodiesLoaded = bodies;
-		end
-		splitIndex = splitIndex + 1;
-	end
-	return timesLoaded, bodiesLoaded;
-end
-
 # Gravitational N-body simulation (stream save to file). 
-# Dependency: Measurements, libYukiMath, JLD2, Dates.
+# Dependency: Measurements, JLD2, Dates.
 # TODO: Validate & Example.
 function libYukiPhysicsNBodySimulationGravitationalStreaming(timeStart::Measurement{Float64}, timeEnd::Measurement{Float64}, timeStep::Measurement{Float64}, bodiesSimulation::Vector{libYukiPhysicsBody}, integrator, gravitationalConstant::Measurement{Float64}, savingDirectory::String, splitSteps::Int64)
 	splitIndex::Int64 = 1;
@@ -104,8 +105,68 @@ function libYukiPhysicsNBodySimulationGravitationalStreaming(timeStart::Measurem
 	println("#INFO:[" * string(now()) * "] Simulation Finished.");
 end
 
+# Gravitational N-body simulation (stream follow a file). 
+# Dependency: Measurements, JLD2, Dates.
+# TODO: Validate & Example.
+function libYukiPhysicsNBodySimulationGravitationalStreamingFollowSplit(timeSimulating::Measurement{Float64}, timeStep::Measurement{Float64}, integrator, gravitationalConstant::Measurement{Float64}, savingDirectory::String, followingSplit::Int64)
+	timesSimulation = nothing;
+	bodiesSimulation = nothing;
+	times, bodies = libYukiPhysicsNBodySimulationGravitationalStreamingPartLoad(savingDirectory, followingSplit);
+
+	if !isnothing(times)
+		bodiesSimulation = [
+			libYukiPhysicsBody(bodies[bodyIndex].name, bodies[bodyIndex].position[end], bodies[bodyIndex].velocity[end], bodies[bodyIndex].mass, bodies[bodyIndex].charge, bodies[bodyIndex].radius)
+			for bodyIndex::Int64 in eachindex(bodies)];
+		timesSimulation = libYukiPhysicsNBodySimulationGravitational(libYukiConstantZero, timeSimulating, timeStep, bodiesSimulation, integrator, gravitationalConstant) .+ timeSimulating;
+	else
+		return timesSimulation, bodiesSimulation;
+	end
+	return timesSimulation, bodiesSimulation;
+end
+
+# Load streaming saved gravitational N-body simulation result. 
+# Dependency: Measurements, JLD2.
+# TODO: Validate & Example.
+function libYukiPhysicsNBodySimulationGravitationalStreamingLoad(savingDirectory::String)
+	splitIndex::Int64 = 1;
+	timesLoaded = nothing;
+	bodiesLoaded = nothing;
+	finishedFlag::Bool = false;
+	while !finishedFlag
+		times, bodies = libYukiPhysicsNBodySimulationGravitationalStreamingPartLoad(savingDirectory, splitIndex);
+		if !isnothing(timesLoaded)
+			append!(timesLoaded, times);
+			for bodiesIndex::Int64 in eachindex(bodies)
+				append!(bodiesLoaded[bodiesIndex].velocity, bodies[bodiesIndex].velocity);
+				append!(bodiesLoaded[bodiesIndex].position, bodies[bodiesIndex].position);
+			end
+		else
+			if splitIndex == 1
+				timesLoaded = times;
+				bodiesLoaded = bodies;
+			else
+				finishedFlag = true;
+			end
+		end
+		splitIndex += 1;
+	end
+	return timesLoaded, bodiesLoaded;
+end
+
+# Load streaming saved gravitational N-body simulation result partially. 
+# Dependency: Measurements, JLD2.
+# TODO: Validate & Example.
+function libYukiPhysicsNBodySimulationGravitationalStreamingPartLoad(savingDirectory::String, splitIndex::Int64)
+	times = nothing;
+	bodies = nothing;
+	if ispath("$savingDirectory/libYukiPhysicsNBodySimulationGravitationalStreamingResult_$splitIndex.jld2")
+		@load "$savingDirectory/libYukiPhysicsNBodySimulationGravitationalStreamingResult_$splitIndex.jld2" times bodies
+	end
+	return times, bodies;
+end
+
 # Gravitational N-body simulation. 
-# Dependency: Measurements, libYukiMath.
+# Dependency: Measurements.
 # Example: True.
 function libYukiPhysicsNBodySimulationGravitational(timeStart::Measurement{Float64}, timeEnd::Measurement{Float64}, timeStep::Measurement{Float64}, bodies::Vector{libYukiPhysicsBody}, integrator, gravitationalConstant::Measurement{Float64})::Vector{Measurement{Float64}}
 

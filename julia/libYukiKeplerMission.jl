@@ -118,14 +118,15 @@ function libYukiKeplerMissionGetConfirmedExoplanetInfomation()
 end
 
 # Download Kepler lightcurve by LightKurve(from Python). 
-# Dependency: PyCall, HTTP, DataFrames, Dates, Measurements, Tables.
+# Dependency: PyCall, HTTP, DataFrames, Dates, Measurements, Tables, lightkurve(from Python).
 # TODO: Validate & Example.
-function libYukiKeplerMissionDownloadLightCurve(stellarOriginalName::String, lightKurve)::Tuple{Vector{Measurement{Float64}}, Vector{Measurement{Float64}}}
+function libYukiKeplerMissionDownloadLightCurve(stellarOriginalName::String)::Tuple{Vector{Measurement{Float64}}, Vector{Measurement{Float64}}}
 	times::Vector{Measurement{Float64}} = [];
 	fluxes::Vector{Measurement{Float64}} = [];
 
 	println("#INFO:[" * string(now()) * "] Finding planetary system of " * stellarOriginalName * "...");
 
+	lightKurve = pyimport("lightkurve");
 	searchResult = lightKurve.search_lightcurve(stellarOriginalName, author="Kepler");
 
 	println("#INFO:[" * string(now()) * "] Found " * string(length(searchResult)) * " sectors/quarters of " * stellarOriginalName * "...");

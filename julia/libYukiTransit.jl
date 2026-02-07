@@ -4,7 +4,17 @@ using PyCall;
 
 include("libYukiBasic.jl")
 
-# Detrending lightcurve with Wotan\.
+# function fold_lightcurve(time, flux, period, t0)
+#     phase = ((time .- t0) .% period) ./ period
+#     phase[phase .> 0.5] .-= 1.0    # 折叠到 [-0.5, 0.5]
+#     # 按相位排序（方便绘图）
+#     sort_idx = sortperm(phase)
+#     return phase[sort_idx], flux[sort_idx]
+# end
+
+# phase, flux_folded = fold_lightcurve(time, flux, P, t0)
+
+# Detrending lightcurve with Wotan.
 # Dependency: Measurements, PyCall, wotan(python package).
 # TODO: Validate & Example.
 function libYukiTransitDetrendByWotan(times::Vector{Measurement{Float64}}, fluxes::Vector{Measurement{Float64}}, stellarRadius::Measurement{Float64}, stellarMass::Measurement{Float64}, planetOrbitPeriod::Measurement{Float64})::Tuple{Vector{Measurement{Float64}}, Vector{Measurement{Float64}}}
@@ -24,7 +34,7 @@ end
 # TODO: Validate & Example.
 function libYukiTransitLoadLightCurveFromJLD2(stellarName)::Tuple{Vector{Measurement{Float64}}, Vector{Measurement{Float64}}}
 	@load "$stellarName.jld2" times fluxes
-	return times, fluxes;
+	return libYukiBasicSort2VectorsByTheFirstOne(times, fluxes);
 end
 
 # Save lightcurve to file. 
