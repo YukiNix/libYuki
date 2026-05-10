@@ -4,12 +4,11 @@ include("libYukiBasic.jl")
 include("libYukiTransit.jl")
 
 # Kepler Time BJD REFI: BJD Time = Kepler Time + 2454833.0;
-const libYukiKeplerMissionBJDREFI::Float64 = 2454833.0;
+const libYukiKeplerMissionBJDREFI = 2454833.0;
 
 # Convert Time of Kepler Lightcurve to BJD.
-# Dependency: Measurements.
 # TODO: Validate & Example.
-function libYukiKeplerMissionConvertLightcurveTimeToBJD(time::Vector{Measurement{Float64}}, flux::Vector{Measurement{Float64}})
+function libYukiKeplerMissionConvertLightcurveTimeToBJD(time::Vector{T}, flux::Vector{T}) where {T <: AbstractFloat}
 	return time .+ libYukiKeplerMissionBJDREFI, flux;
 end
 
@@ -21,20 +20,20 @@ function libYukiKeplerMissionConvertExoplanetInformation(keplerConfirmedPlanetsF
 	convertedExoplanetInformationFrame = DataFrame(
 		planetName = Union{String, Missing}[],
 		hostName = Union{String, Missing}[],
-		systemDistance = Union{Measurement{Float64}, Missing}[],					# pc
-		planetOrbitPeriod = Union{Measurement{Float64}, Missing}[],					# day
-		planetOrbitSemiMajorAxis = Union{Measurement{Float64}, Missing}[],			# AU
-		planetOrbitEccentricity = Union{Measurement{Float64}, Missing}[],
-		planetRadius = Union{Measurement{Float64}, Missing}[],						# Earth Radius
-		stellarRadius = Union{Measurement{Float64}, Missing}[],						# Sun Radius
-		planetMass = Union{Measurement{Float64}, Missing}[],						# Earth Mass
+		systemDistance = Union{Measurement, Missing}[],						# pc
+		planetOrbitPeriod = Union{Measurement, Missing}[],						# day
+		planetOrbitSemiMajorAxis = Union{Measurement, Missing}[],				# AU
+		planetOrbitEccentricity = Union{Measurement, Missing}[],
+		planetRadius = Union{Measurement, Missing}[],							# Earth Radius
+		stellarRadius = Union{Measurement, Missing}[],							# Sun Radius
+		planetMass = Union{Measurement, Missing}[],								# Earth Mass
 		planetMassProvenance = Union{String, Missing}[],
-		stellarMass = Union{Measurement{Float64}, Missing}[],						# Sun Mass
-		stellarEffectiveTemperature = Union{Measurement{Float64}, Missing}[],		# K
-		stellarMetallicity = Union{Measurement{Float64}, Missing}[],				# dex
+		stellarMass = Union{Measurement, Missing}[],							# Sun Mass
+		stellarEffectiveTemperature = Union{Measurement, Missing}[],			# K
+		stellarMetallicity = Union{Measurement, Missing}[],					# dex
 		stellarMetallicityRatio = Union{String, Missing}[],
-		planetOrbitInclination = Union{Measurement{Float64}, Missing}[],			# deg
-		planetTransitTimeConjunction = Union{Measurement{Float64}, Missing}[],		# day
+		planetOrbitInclination = Union{Measurement, Missing}[],				# deg
+		planetTransitTimeConjunction = Union{Measurement, Missing}[],			# day
 		planetTransitTimeReference = Union{String, Missing}[]
 	);
 
@@ -120,9 +119,9 @@ end
 # Download Kepler lightcurve by LightKurve(from Python). 
 # Dependency: PyCall, HTTP, DataFrames, Dates, Measurements, Tables, lightkurve(from Python).
 # TODO: Validate & Example.
-function libYukiKeplerMissionDownloadLightCurve(stellarOriginalName::String)::Tuple{Vector{Measurement{Float64}}, Vector{Measurement{Float64}}}
-	times::Vector{Measurement{Float64}} = [];
-	fluxes::Vector{Measurement{Float64}} = [];
+function libYukiKeplerMissionDownloadLightCurve(stellarOriginalName::String)
+	times = Measurement{Float64}[];
+	fluxes = Measurement{Float64}[];
 
 	println("#INFO:[" * string(now()) * "] Finding planetary system of " * stellarOriginalName * "...");
 
@@ -139,14 +138,14 @@ function libYukiKeplerMissionDownloadLightCurve(stellarOriginalName::String)::Tu
 		println("#INFO:[" * string(now()) * "]\t Downloading " * string(index) * "/" * string(length(searchResult)) * " curve...");
 
 		try
-			subTimes::Vector{Measurement{Float64}} = [];
-			subFluxes::Vector{Measurement{Float64}} = [];
+			subTimes = Measurement{Float64}[];
+			subFluxes = Measurement{Float64}[];
 
 			kurve = result.download();
 			for (time, flux, flux_err, timecorr) in zip(kurve.time, kurve.flux, kurve.flux_err, kurve.timecorr)
 				try
-					realFlux = convert(Measurement{Float64}, flux[1] ± flux_err[1]);
-					realTime = convert(Measurement{Float64}, time.value + timecorr[1][1]);
+					realFlux = flux[1] ± flux_err[1];
+					realTime = (time.value + timecorr[1][1]) ± 0.;
 					if isnan(realFlux) || isnan(realTime)
 						continue;
 					end
@@ -157,7 +156,7 @@ function libYukiKeplerMissionDownloadLightCurve(stellarOriginalName::String)::Tu
 					println(err);
 				end
 			end
-			detrendedTime::Vector{Measurement{Float64}}, detrendedFluxes::Vector{Measurement{Float64}} = libYukiTransitDetrendByWotan(subTimes, subFluxes, 0. ± 0., 0. ± 0., 0. ± 0.);
+			detrendedTime, detrendedFluxes = libYukiTransitDetrendByWotan(subTimes, subFluxes, 0. ± 0., 0. ± 0., 0. ± 0.);
 			append!(times, detrendedTime);
 			append!(fluxes, detrendedFluxes);
 		catch err
