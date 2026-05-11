@@ -7,7 +7,7 @@ include("libYukiPhysics.jl");
 
 # Calculate N-Body hamiltonian. 
 # TODO: Validate & Example.
-function libYukiPhysicsNBodySimulationGravitationalHamiltonian(bodiesSimulation::Vector{libYukiPhysicsBody{T}}, gravitationalConstant::T) where {T <: AbstractFloat}
+function libYukiPhysicsNBodySimulationGravitationalHamiltonian(bodiesSimulation::AbstractVector{libYukiPhysicsBody{T}}, gravitationalConstant::T) where {T <: Real}
 	simulationStep = length(bodiesSimulation[1].velocity);
 	for bodyLengthChecking in bodiesSimulation
 		simulationVelocitySteps = length(bodyLengthChecking.velocity);
@@ -39,25 +39,25 @@ end
 # # Find angular crossing time by specified vector. 
 # # Dependency: Measurements.
 # # TODO: Validate & Example.
-# function libYukiPhysicsNBodySimulationTimeRelativeAngleZeroCrossing(vectorA::Vector{Measurement{Float64}}, time::Vector{Measurement{Float64}}, position::Vector{Vector{Measurement{Float64}}})::Union{Vector{Measurement{Float64}}, Missing}
-# 	sortedTime::Vector{Measurement{Float64}}, sortedPosition::Vector{Vector{Measurement{Float64}}} = libYukiBasicSortElementsByOrderVector(time, position);
-# 	angles::Vector{Measurement{Float64}} = map(x -> libYukiMathAngleBetweenVector(vectorA, x), sortedPosition);
+# function libYukiPhysicsNBodySimulationTimeRelativeAngleZeroCrossing(vectorA::AbstractVector{Measurement{Float64}}, time::AbstractVector{Measurement{Float64}}, position::AbstractVector{AbstractVector{Measurement{Float64}}})::Union{AbstractVector{Measurement{Float64}}, Missing}
+# 	sortedTime::AbstractVector{Measurement{Float64}}, sortedPosition::AbstractVector{AbstractVector{Measurement{Float64}}} = libYukiBasicSortElementsByOrderVector(time, position);
+# 	angles::AbstractVector{Measurement{Float64}} = map(x -> libYukiMathAngleBetweenVector(vectorA, x), sortedPosition);
 
 # 	crossIndices = findall(x -> angles[x - 1] > angles[x] && angles[x + 1] > angles[x], 2 : length(angles) - 2);
 # 	if length(crossIndices) > 0
-# 		k0_0::Vector{Measurement{Float64}} = (angles[crossIndices] .- angles[crossIndices .- 1]) ./ (sortedTime[crossIndices] .- sortedTime[crossIndices .- 1]);
-# 		t0_0::Vector{Measurement{Float64}} = ((angles[crossIndices] .* sortedTime[crossIndices .- 1]) .- (angles[crossIndices .- 1] .* sortedTime[crossIndices])) ./ (angles[crossIndices] .- angles[crossIndices .- 1]);
-# 		nk0_1::Vector{Measurement{Float64}} = -angles[crossIndices .+ 1] ./ (sortedTime[crossIndices .+ 1] .- t0_0);
-# 		dk0mul::Vector{Measurement{Float64}} = k0_0 .* nk0_1;
-# 		dk0plus::Vector{Measurement{Float64}} = abs.(k0_0 .+ nk0_1);
+# 		k0_0::AbstractVector{Measurement{Float64}} = (angles[crossIndices] .- angles[crossIndices .- 1]) ./ (sortedTime[crossIndices] .- sortedTime[crossIndices .- 1]);
+# 		t0_0::AbstractVector{Measurement{Float64}} = ((angles[crossIndices] .* sortedTime[crossIndices .- 1]) .- (angles[crossIndices .- 1] .* sortedTime[crossIndices])) ./ (angles[crossIndices] .- angles[crossIndices .- 1]);
+# 		nk0_1::AbstractVector{Measurement{Float64}} = -angles[crossIndices .+ 1] ./ (sortedTime[crossIndices .+ 1] .- t0_0);
+# 		dk0mul::AbstractVector{Measurement{Float64}} = k0_0 .* nk0_1;
+# 		dk0plus::AbstractVector{Measurement{Float64}} = abs.(k0_0 .+ nk0_1);
 
-# 		k1_0::Vector{Measurement{Float64}} = (angles[crossIndices .+ 1] .- angles[crossIndices]) ./ (sortedTime[crossIndices .+ 1] .- sortedTime[crossIndices]);
-# 		t1_0::Vector{Measurement{Float64}} = ((angles[crossIndices .+ 1] .* sortedTime[crossIndices]) .- (angles[crossIndices] .* sortedTime[crossIndices .+ 1])) ./ (angles[crossIndices .+ 1] .- angles[crossIndices]);
-# 		nk1_1::Vector{Measurement{Float64}} = -angles[crossIndices .- 1] ./ (sortedTime[crossIndices .- 1] .- t1_0);
-# 		dk1mul::Vector{Measurement{Float64}} = k1_0 .* nk1_1;
-# 		dk1plus::Vector{Measurement{Float64}} = abs.(k1_0 .+ nk1_1);
+# 		k1_0::AbstractVector{Measurement{Float64}} = (angles[crossIndices .+ 1] .- angles[crossIndices]) ./ (sortedTime[crossIndices .+ 1] .- sortedTime[crossIndices]);
+# 		t1_0::AbstractVector{Measurement{Float64}} = ((angles[crossIndices .+ 1] .* sortedTime[crossIndices]) .- (angles[crossIndices] .* sortedTime[crossIndices .+ 1])) ./ (angles[crossIndices .+ 1] .- angles[crossIndices]);
+# 		nk1_1::AbstractVector{Measurement{Float64}} = -angles[crossIndices .- 1] ./ (sortedTime[crossIndices .- 1] .- t1_0);
+# 		dk1mul::AbstractVector{Measurement{Float64}} = k1_0 .* nk1_1;
+# 		dk1plus::AbstractVector{Measurement{Float64}} = abs.(k1_0 .+ nk1_1);
 
-# 		t0::Vector{Measurement{Float64}} = map(x -> 
+# 		t0::AbstractVector{Measurement{Float64}} = map(x -> 
 # 				dk0mul[x] > 0 ? t1_0[x] : (
 # 				dk1mul[x] > 0 ? t0_0[x] : (
 # 				dk0plus[x] < dk1plus[x] ? t0_0[x] : t1_0[x]
@@ -71,7 +71,7 @@ end
 # Gravitational N-body simulation (stream save to file). 
 # Dependency: JLD2, Dates.
 # TODO: Validate & Example.
-function libYukiPhysicsNBodySimulationGravitationalStreaming(timeStart::T, timeEnd::T, timeStep::T, bodiesSimulation::Vector{libYukiPhysicsBody{T}}, integrator, gravitationalConstant::T, savingDirectory::String, splitSteps::Integer) where {T <: AbstractFloat}
+function libYukiPhysicsNBodySimulationGravitationalStreaming(timeStart::T, timeEnd::T, timeStep::T, bodiesSimulation::AbstractVector{libYukiPhysicsBody{T}}, integrator, gravitationalConstant::T, savingDirectory::String, splitSteps::Integer) where {T <: Real}
 	splitIndex = 1;
 	timesSimulation = T[];
 
@@ -107,7 +107,7 @@ end
 # Gravitational N-body simulation (stream follow a file). 
 # Dependency: JLD2, Dates.
 # TODO: Validate & Example.
-function libYukiPhysicsNBodySimulationGravitationalStreamingFollowSplit(timeSimulating::T, timeStep::T, integrator, gravitationalConstant::T, savingDirectory::String, followingSplit::Integer) where {T <: AbstractFloat}
+function libYukiPhysicsNBodySimulationGravitationalStreamingFollowSplit(timeSimulating::T, timeStep::T, integrator, gravitationalConstant::T, savingDirectory::String, followingSplit::Integer) where {T <: Real}
 	timesSimulation = nothing;
 	bodiesSimulation = nothing;
 	times, bodies = libYukiPhysicsNBodySimulationGravitationalStreamingPartLoad(savingDirectory, followingSplit);
@@ -166,7 +166,7 @@ end
 
 # Gravitational N-body simulation. 
 # TODO: Validate & Example.
-function libYukiPhysicsNBodySimulationGravitational(timeStart::T, timeEnd::T, timeStep::T, bodies::Vector{libYukiPhysicsBody{T}}, integrator, gravitationalConstant::T) where {T <: AbstractFloat}
+function libYukiPhysicsNBodySimulationGravitational(timeStart::T, timeEnd::T, timeStep::T, bodies::AbstractVector{libYukiPhysicsBody{T}}, integrator, gravitationalConstant::T) where {T <: Real}
 
 	dimension = 3;
 	bodiesNumber = length(bodies);

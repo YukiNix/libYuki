@@ -12,7 +12,7 @@ end
 
 # Derive a Float64 value with uncertainty.
 # Dependency: Measurements.
-function libYukiBasicMeasurementWithMissing(value::Union{AbstractFloat, Missing}, valueErr1::Union{AbstractFloat, Missing}, valueErr2::Union{AbstractFloat, Missing})::Union{Measurement, Missing}
+function libYukiBasicMeasurementWithMissing(value::Union{Real, Missing}, valueErr1::Union{Real, Missing}, valueErr2::Union{Real, Missing})::Union{Measurement, Missing}
 	if ismissing(valueErr1) || ismissing(valueErr2)
 		return value ± 0.;
 	else
