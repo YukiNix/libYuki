@@ -8,7 +8,7 @@ const libYukiKeplerMissionBJDREFI = 2454833.0;
 
 # Convert Time of Kepler Lightcurve to BJD.
 # TODO: Validate & Example.
-function libYukiKeplerMissionConvertLightcurveTimeToBJD(time::AbstractVector{T}, flux::AbstractVector{T}) where {T <: Real}
+function libYukiKeplerMissionConvertLightcurveTimeToBJD(time::AbstractVector{<:Real}, flux::AbstractVector{<:Real})
 	return time .+ libYukiKeplerMissionBJDREFI, flux;
 end
 

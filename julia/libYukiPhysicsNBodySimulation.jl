@@ -7,7 +7,7 @@ include("libYukiPhysics.jl");
 
 # Calculate N-Body hamiltonian. 
 # TODO: Validate & Example.
-function libYukiPhysicsNBodySimulationGravitationalHamiltonian(bodiesSimulation::AbstractVector{libYukiPhysicsBody{T}}, gravitationalConstant::T) where {T <: Real}
+function libYukiPhysicsNBodySimulationGravitationalHamiltonian(bodiesSimulation::AbstractVector{libYukiPhysicsBody{<:Real}}, gravitationalConstant::Real)
 	simulationStep = length(bodiesSimulation[1].velocity);
 	for bodyLengthChecking in bodiesSimulation
 		simulationVelocitySteps = length(bodyLengthChecking.velocity);
@@ -71,7 +71,7 @@ end
 # Gravitational N-body simulation (stream save to file). 
 # Dependency: JLD2, Dates.
 # TODO: Validate & Example.
-function libYukiPhysicsNBodySimulationGravitationalStreaming(timeStart::T, timeEnd::T, timeStep::T, bodiesSimulation::AbstractVector{libYukiPhysicsBody{T}}, integrator, gravitationalConstant::T, savingDirectory::String, splitSteps::Integer) where {T <: Real}
+function libYukiPhysicsNBodySimulationGravitationalStreaming(timeStart::Real, timeEnd::Real, timeStep::Real, bodiesSimulation::AbstractVector{libYukiPhysicsBody{<:Real}}, integrator, gravitationalConstant::Real, savingDirectory::String, splitSteps::Integer)
 	splitIndex = 1;
 	timesSimulation = T[];
 
@@ -107,7 +107,7 @@ end
 # Gravitational N-body simulation (stream follow a file). 
 # Dependency: JLD2, Dates.
 # TODO: Validate & Example.
-function libYukiPhysicsNBodySimulationGravitationalStreamingFollowSplit(timeSimulating::T, timeStep::T, integrator, gravitationalConstant::T, savingDirectory::String, followingSplit::Integer) where {T <: Real}
+function libYukiPhysicsNBodySimulationGravitationalStreamingFollowSplit(timeSimulating::Real, timeStep::Real, integrator, gravitationalConstant::Real, savingDirectory::String, followingSplit::Integer)
 	timesSimulation = nothing;
 	bodiesSimulation = nothing;
 	times, bodies = libYukiPhysicsNBodySimulationGravitationalStreamingPartLoad(savingDirectory, followingSplit);
@@ -166,7 +166,7 @@ end
 
 # Gravitational N-body simulation. 
 # TODO: Validate & Example.
-function libYukiPhysicsNBodySimulationGravitational(timeStart::T, timeEnd::T, timeStep::T, bodies::AbstractVector{libYukiPhysicsBody{T}}, integrator, gravitationalConstant::T) where {T <: Real}
+function libYukiPhysicsNBodySimulationGravitational(timeStart::Real, timeEnd::Real, timeStep::Real, bodies::AbstractVector{libYukiPhysicsBody{<:Real}}, integrator, gravitationalConstant::Real)
 
 	dimension = 3;
 	bodiesNumber = length(bodies);
