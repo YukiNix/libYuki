@@ -68,14 +68,9 @@ end
 # Example: True.
 function libYukiPhysicsPotentialEnergyForce(potentialEnergyFunction::Function, objectDisplacement::AbstractVector{<:Real})::AbstractVector{<:Real} 
 	displacementVectorMod = libYukiMathVectorQuantity(objectDisplacement);
-	return -libYukiMathForwardDifference(x -> potentialEnergyFunction(x), displacementVectorMod) .* objectDisplacement ./ displacementVectorMod;
+	return -libYukiMathDerivative(x -> potentialEnergyFunction(x), displacementVectorMod) .* objectDisplacement ./ displacementVectorMod;
 end
 
-# Calculate gravitational potential between source and object. Displacement(source -> object).
-# Example: True.
-function libYukiPhysicsGravitationalPotential(gravitationalConstant::Real, sourceMass::Real, objectDistance::Real)::Real 
-	return -(gravitationalConstant * sourceMass) / objectDistance;
-end
 # Differentiable version (strips Measurement wrapper for ForwardDiff compatibility).
 # When objectDistance is also Measurement, use the standard version above via full uncertainty propagation.
 # When objectDistance is a non-Measurement Real (e.g. ForwardDiff.Dual), strip Measurement from G and M.
@@ -84,6 +79,6 @@ end
 function libYukiPhysicsGravitationalPotential(gravitationalConstant::Real, sourceMass::Real, objectDistance::Real) 
 	return -Measurements.value(gravitationalConstant * sourceMass) / objectDistance;
 end
-function libYukiPhysicsGravitationalPotential(gravitationalConstant::Real, sourceMass::Real, objectDistance::Real)
-	return -(gravitationalConstant * sourceMass) / objectDistance;
-end
+# function libYukiPhysicsGravitationalPotential(gravitationalConstant::Real, sourceMass::Real, objectDistance::Real)
+# 	return -(gravitationalConstant * sourceMass) / objectDistance;
+# end
