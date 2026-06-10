@@ -1,6 +1,9 @@
 using HTTP, DataFrames, Dates, Tables, PyCall, Measurements, CSV, JLD2;
 
 include("libYukiBasic.jl")
+include("libYukiConstant.jl")
+include("libYukiMath.jl")
+include("libYukiPhysics.jl")
 include("libYukiTransit.jl")
 
 # Kepler Time BJD REFI: BJD Time = Kepler Time + 2454833.0;

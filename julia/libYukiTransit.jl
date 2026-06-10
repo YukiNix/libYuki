@@ -3,6 +3,9 @@ using Turing, Transits, Random, Orbits, StableRNGs;
 using PyCall;
 
 include("libYukiBasic.jl")
+include("libYukiConstant.jl")
+include("libYukiMath.jl")
+include("libYukiPhysics.jl")
 
 # Quadratic limb-darkening transit flux model.
 # Dependency: Turing, Transits, Orbits.
