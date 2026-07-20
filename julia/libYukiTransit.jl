@@ -8,6 +8,20 @@ include("libYukiConstant.jl")
 include("libYukiMath.jl")
 include("libYukiPhysics.jl")
 
+"""
+	libYukiTransitLightCurve(
+		time, 
+		flux, 
+		fluxErr
+	)
+Define a light curve for transit analysis with time, flux, and flux error.
+# Arguments
+- `time`: A vector of time values.
+- `flux`: A vector of flux values corresponding to the time values.
+- `fluxErr`: A vector of flux error values corresponding to the time values.
+# Returns
+- An instance of `libYukiTransitLightCurve`.
+"""
 mutable struct libYukiTransitLightCurve
 	time::AbstractVector
 	flux::AbstractVector
@@ -27,6 +41,42 @@ end
 	end
 end
 
+"""
+	libYukiTransitLoadLightCurveFromFITS(
+		fileName
+	)
+Load a light curve from a FITS file.
+# Arguments
+- `fileName`: The path to the FITS file containing the light curve data.
+# Returns
+- An instance of `libYukiTransitLightCurve` containing the time, flux, and flux error data.
+"""
+function libYukiTransitLoadLightCurveFromFITS(fileName::String)
+	time, flux, fluxErr = FITS(fileName, "r") do file
+		table = file[2];
+		return (
+			read(table, "TIME"),
+			read(table, "FLUX"),
+			read(table, "FLUX_ERR")
+		);
+	end
+	return libYukiTransitLightCurve(
+		time,
+		flux,
+		fluxErr
+	);
+end
+
+"""
+	libYukiTransitSaveLightCurveToFITS(
+		lightCurve,
+		filePath
+	)
+Save a light curve to a FITS file.
+# Arguments
+- `lightCurve`: An instance of `libYukiTransitLightCurve`.
+- `filePath`: The path to the FITS file where the light curve will be saved.
+"""
 function libYukiTransitSaveLightCurveToFITS(lightCurve::libYukiTransitLightCurve, filePath::String)
 	length(lightCurve.time) == length(lightCurve.flux) == length(lightCurve.fluxErr) ||
         throw(DimensionMismatch("The three vectors must have equal lengths."))
@@ -39,6 +89,26 @@ function libYukiTransitSaveLightCurveToFITS(lightCurve::libYukiTransitLightCurve
     end
 end
 
+"""
+	libYukiTransitNormalizeLightCurve(
+		lightCurve
+	)
+	libYukiTransitNormalizeLightCurve!(
+		lightCurve
+	)
+Normalize the flux of a light curve by dividing it by its median value. The flux error is also adjusted accordingly. 
+# Arguments
+- `lightCurve`: An instance of `libYukiTransitLightCurve`.
+# Returns
+- A new instance of `libYukiTransitLightCurve` with normalized flux and flux error.
+# Notes
+- The function `libYukiTransitNormalizeLightCurve!` modifies the input light curve in place, while `libYukiTransitNormalizeLightCurve` returns a new normalized light curve.
+"""
+function libYukiTransitNormalizeLightCurve(lightCurve::libYukiTransitLightCurve)
+	lightCurveNormalized = deepcopy(lightCurve);
+	libYukiTransitNormalizeLightCurve!(lightCurveNormalized);
+	return lightCurveNormalized;
+end
 function libYukiTransitNormalizeLightCurve!(lightCurve::libYukiTransitLightCurve)
 	medianFlux = median(lightCurve.flux);
 	if !isfinite(medianFlux) || medianFlux == 0.0
@@ -48,6 +118,21 @@ function libYukiTransitNormalizeLightCurve!(lightCurve::libYukiTransitLightCurve
 	lightCurve.fluxErr ./= abs(medianFlux);
 end
 
+"""
+	libYukiTransitGetValidLightCurve(
+		lightCurve
+	)
+	libYukiTransitGetValidLightCurve!(
+		lightCurve
+	)
+Filter out invalid data points from a light curve, ensuring that only finite and positive flux error values are retained. The filtered light curve is sorted by time.
+# Arguments
+- `lightCurve`: An instance of `libYukiTransitLightCurve`.
+# Returns
+- A new instance of `libYukiTransitLightCurve` containing only valid data points.
+- Notes
+- The function `libYukiTransitGetValidLightCurve!` modifies the input light curve in place, while `libYukiTransitGetValidLightCurve` returns a new filtered light curve.
+"""
 function libYukiTransitGetValidLightCurve!(lightCurve::libYukiTransitLightCurve)
 	validMask = isfinite.(lightCurve.time) .& isfinite.(lightCurve.flux) .& isfinite.(lightCurve.fluxErr) .& (lightCurve.fluxErr .> 0);
 	lightCurve.time = lightCurve.time[validMask];
@@ -58,6 +143,11 @@ function libYukiTransitGetValidLightCurve!(lightCurve::libYukiTransitLightCurve)
 	lightCurve.time = map(x -> Float64(x), lightCurve.time[sortIdx]);
 	lightCurve.flux = map(x -> Float64(x), lightCurve.flux[sortIdx]);
 	lightCurve.fluxErr = map(x -> Float64(x), lightCurve.fluxErr[sortIdx]);
+end
+function libYukiTransitGetValidLightCurve(lightCurve::libYukiTransitLightCurve)
+	lightCurveValid = deepcopy(lightCurve);
+	libYukiTransitGetValidLightCurve!(lightCurveValid);
+	return lightCurveValid;
 end
 
 # Transit flux with limb-darkening.
@@ -108,9 +198,35 @@ function libYukiTransitBinLightCurve(times::AbstractVector{<:Real}, fluxes::Abst
     return binnedTimes[nNaNIndices], binnedFluxes[nNaNIndices]
 end
 
-# Folding lightcurve.
-# TODO: Example.
-function libYukiTransitFoldLightCurve(time::AbstractVector{<:Real}, flux::AbstractVector{<:Real}, fluxErr::AbstractVector{<:Real}, planetOrbitPeriod::Real, transitCentreTime::Real)
+
+"""
+	libYukiTransitFoldLightCurve(
+		time,
+		flux,
+		fluxErr, 
+		planetOrbitPeriod, 
+		transitCentreTime
+	)
+	libYukiTransitFoldLightCurve(
+		lightCurve, 
+		planetOrbitPeriod, 
+		transitCentreTime
+	)
+Fold a light curve based on the planet's orbital period and the transit center time.
+# Arguments
+- `lightCurve`: An instance of `libYukiTransitLightCurve`.
+- `planetOrbitPeriod`: The orbital period of the planet.
+- `transitCentreTime`: The time of the transit center.
+# Returns
+- A new instance of `libYukiTransitLightCurve` with folded time, flux, and flux error.
+"""
+function libYukiTransitFoldLightCurve(
+	time::AbstractVector{<:Real}, 
+	flux::AbstractVector{<:Real}, 
+	fluxErr::AbstractVector{<:Real}, 
+	planetOrbitPeriod::Real, 
+	transitCentreTime::Real
+)
     foldedTime = ((time .- transitCentreTime) .% planetOrbitPeriod);
     foldedTime[foldedTime .> planetOrbitPeriod / 2] .-= planetOrbitPeriod;
 
@@ -121,17 +237,17 @@ function libYukiTransitFoldLightCurve(time::AbstractVector{<:Real}, flux::Abstra
 
 	return libYukiTransitLightCurve(foldedTime, foldedFlux, foldedFluxErr);
 end
-function libYukiTransitFoldLightCurve(lightCurve::libYukiTransitLightCurve, planetOrbitPeriod::Real, transitCentreTime::Real)
-	foldedTime = ((lightCurve.time .- transitCentreTime) .% planetOrbitPeriod);
-	foldedTime[foldedTime .> planetOrbitPeriod / 2] .-= planetOrbitPeriod;
-
-	sortedIndex = sortperm(foldedTime);
-	foldedTime = foldedTime[sortedIndex];
-	foldedFlux = lightCurve.flux[sortedIndex];
-	foldedFluxErr = lightCurve.fluxErr[sortedIndex];
-
-	return libYukiTransitLightCurve(foldedTime, foldedFlux, foldedFluxErr);
-end
+libYukiTransitFoldLightCurve(
+	lightCurve::libYukiTransitLightCurve, 
+	planetOrbitPeriod::Real, 
+	transitCentreTime::Real
+) = libYukiTransitFoldLightCurve(
+	lightCurve.time, 
+	lightCurve.flux, 
+	lightCurve.fluxErr, 
+	planetOrbitPeriod, 
+	transitCentreTime
+);
 
 # Detrending lightcurve with Wotan.
 # Dependency: PyCall, wotan(python package).
@@ -147,10 +263,6 @@ function libYukiTransitDetrendByWotan(times::AbstractVector{<:Real}, fluxes::Abs
 	detrendedFluxes, _ = pyWotan.flatten(Measurements.value.(sortedTimes), Measurements.value.(sortedFluxes), window_length = window, method = "biweight", return_trend = true);
 	return sortedTimes, AbstractVector{<:Real}(detrendedFluxes);
 end
-
-# Detrending lightcurve with Wotan (with uncertainty propagation).
-# Dependency: Measurements, PyCall, wotan(python package).
-# TODO: Validate & Example.
 function libYukiTransitDetrendByWotan(times::AbstractVector{<:Real}, fluxes::AbstractVector{<:Real}, stellarRadius::Real, stellarMass::Real, planetOrbitPeriod::Real) 
 	pyWotan = pyimport("wotan");
 	if stellarRadius == 0. || stellarMass == 0. || planetOrbitPeriod == 0.
@@ -163,6 +275,24 @@ function libYukiTransitDetrendByWotan(times::AbstractVector{<:Real}, fluxes::Abs
 	return sortedTimes, detrendedFluxes .± (Measurements.uncertainty.(sortedFluxes) ./ Measurements.value.(sortedFluxes));
 end
 
+"""
+	libYukiTransitTransitDurationEvaluate(
+		planetOrbitPeriod, 
+		stellarRadius, 
+		planetRadius, 
+		planetOrbitSemiMajorAxis, 
+		planetOrbitInclination
+	)
+Evaluate the transit duration based on the planet's orbital parameters and stellar properties.
+# Arguments
+- `planetOrbitPeriod`: The orbital period of the planet.
+- `stellarRadius`: The radius of the host star.
+- `planetRadius`: The radius of the planet.
+- `planetOrbitSemiMajorAxis`: The semi-major axis of the planet's orbit.
+- `planetOrbitInclination`: The inclination of the planet's orbit in degrees.
+# Returns
+- The transit duration.
+"""
 function libYukiTransitTransitDurationEvaluate(
     planetOrbitPeriod::Real,
     stellarRadius::Real,
@@ -180,19 +310,4 @@ function libYukiTransitTransitDurationEvaluate(
     argument = sqrt(contactRadius ^ 2 - impactParameter ^ 2) / (scaledSemiMajorAxis * inclinationSin);
 
     return (planetOrbitPeriod / π * asin(clamp(argument, -1, 1)));
-end
-
-# Load lightcurve from file. 
-# Dependency: JLD2.
-# TODO: Validate & Example.
-function libYukiTransitLoadLightCurveFromJLD2(stellarName)
-	@load "$stellarName.jld2" times fluxes
-	return libYukiBasicSortElementsByOrderVector(times, fluxes);
-end
-
-# Save lightcurve to file. 
-# Dependency: JLD2.
-# TODO: Validate & Example.
-function libYukiTransitSaveLightCurveToJLD2(stellarName::String, times::AbstractVector{<:Real}, fluxes::AbstractVector{<:Real}) 
-	@save "$stellarName.jld2" times fluxes
 end
