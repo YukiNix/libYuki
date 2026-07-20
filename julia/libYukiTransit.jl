@@ -1,6 +1,7 @@
 using JLD2, Measurements, Dates, Tables, DataFrames, ProgressMeter;
 using Turing, Transits, Random, Orbits, StableRNGs;
 using PyCall;
+using FITSIO;
 
 include("libYukiBasic.jl")
 include("libYukiConstant.jl")
@@ -11,7 +12,7 @@ mutable struct libYukiTransitLightCurve
 	time::AbstractVector
 	flux::AbstractVector
 	fluxErr::AbstractVector
-	libYukiTransitLightCurve() = new([], [], []);
+	libYukiTransitLightCurve(time, flux, fluxErr) = new(time, flux, fluxErr);
 end
 
 # Quadratic limb-darkening transit flux model.
@@ -26,17 +27,25 @@ end
 	end
 end
 
+function libYukiTransitSaveLightCurveToFITS(lightCurve::libYukiTransitLightCurve, filePath::String)
+	length(lightCurve.time) == length(lightCurve.flux) == length(lightCurve.fluxErr) ||
+        throw(DimensionMismatch("The three vectors must have equal lengths."))
+    FITS(filePath, "w") do file
+        write(file, Dict(
+            "TIME"     => Float64.(lightCurve.time),
+            "FLUX"     => Float64.(lightCurve.flux),
+            "FLUX_ERR" => Float64.(lightCurve.fluxErr),
+        ));
+    end
+end
+
 function libYukiTransitNormalizeLightCurve!(lightCurve::libYukiTransitLightCurve)
 	medianFlux = median(lightCurve.flux);
 	if !isfinite(medianFlux) || medianFlux == 0.0
 		error("Normalization failed: median flux is not finite or zero.")
 	end
-	lightCurve.flux = lightCurve.flux ./ medianFlux;
-	lightCurve.fluxErr = lightCurve.fluxErr ./ abs(medianFlux);
-
-	medianFlux = median(lightCurve.flux);
 	lightCurve.flux ./= medianFlux;
-	lightCurve.fluxErr ./= medianFlux;
+	lightCurve.fluxErr ./= abs(medianFlux);
 end
 
 function libYukiTransitGetValidLightCurve!(lightCurve::libYukiTransitLightCurve)
@@ -101,14 +110,27 @@ end
 
 # Folding lightcurve.
 # TODO: Example.
-function libYukiTransitFoldLightCurve(times::AbstractVector{<:Real}, fluxes::AbstractVector{<:Real}, planetOrbitPeriod::Real, transitCentreTime::Real) 
-    foldedTimes = ((times .- transitCentreTime) .% planetOrbitPeriod);
-    foldedTimes[foldedTimes .> planetOrbitPeriod / 2] .-= planetOrbitPeriod;
+function libYukiTransitFoldLightCurve(time::AbstractVector{<:Real}, flux::AbstractVector{<:Real}, fluxErr::AbstractVector{<:Real}, planetOrbitPeriod::Real, transitCentreTime::Real)
+    foldedTime = ((time .- transitCentreTime) .% planetOrbitPeriod);
+    foldedTime[foldedTime .> planetOrbitPeriod / 2] .-= planetOrbitPeriod;
 
-	sortedIndex = sortperm(foldedTimes);
-    foldedTimes = foldedTimes[sortedIndex];
-	foldedFluxes = fluxes[sortedIndex];
-	return foldedTimes, foldedFluxes;
+	sortedIndex = sortperm(foldedTime);
+    foldedTime = foldedTime[sortedIndex];
+	foldedFlux = flux[sortedIndex];
+	foldedFluxErr = fluxErr[sortedIndex];
+
+	return libYukiTransitLightCurve(foldedTime, foldedFlux, foldedFluxErr);
+end
+function libYukiTransitFoldLightCurve(lightCurve::libYukiTransitLightCurve, planetOrbitPeriod::Real, transitCentreTime::Real)
+	foldedTime = ((lightCurve.time .- transitCentreTime) .% planetOrbitPeriod);
+	foldedTime[foldedTime .> planetOrbitPeriod / 2] .-= planetOrbitPeriod;
+
+	sortedIndex = sortperm(foldedTime);
+	foldedTime = foldedTime[sortedIndex];
+	foldedFlux = lightCurve.flux[sortedIndex];
+	foldedFluxErr = lightCurve.fluxErr[sortedIndex];
+
+	return libYukiTransitLightCurve(foldedTime, foldedFlux, foldedFluxErr);
 end
 
 # Detrending lightcurve with Wotan.
@@ -139,6 +161,25 @@ function libYukiTransitDetrendByWotan(times::AbstractVector{<:Real}, fluxes::Abs
 	sortedTimes, sortedFluxes = libYukiBasicSortElementsByOrderVector(times, fluxes);
 	detrendedFluxes, _ = pyWotan.flatten(Measurements.value.(sortedTimes), Measurements.value.(sortedFluxes), window_length = window, method = "biweight", return_trend = true);
 	return sortedTimes, detrendedFluxes .± (Measurements.uncertainty.(sortedFluxes) ./ Measurements.value.(sortedFluxes));
+end
+
+function libYukiTransitTransitDurationEvaluate(
+    planetOrbitPeriod::Real,
+    stellarRadius::Real,
+    planetRadius::Real,
+    planetOrbitSemiMajorAxis::Real,
+    planetOrbitInclination::Real,
+)
+    radiusRatio = planetRadius / stellarRadius;
+    scaledSemiMajorAxis = planetOrbitSemiMajorAxis / stellarRadius;
+    inclinationSin = sind(planetOrbitInclination);
+    impactParameter = scaledSemiMajorAxis * cosd(planetOrbitInclination);
+    contactRadius = 1 + radiusRatio;
+    impactParameter < contactRadius || return zero(float(planetOrbitPeriod))
+
+    argument = sqrt(contactRadius ^ 2 - impactParameter ^ 2) / (scaledSemiMajorAxis * inclinationSin);
+
+    return (planetOrbitPeriod / π * asin(clamp(argument, -1, 1)));
 end
 
 # Load lightcurve from file. 

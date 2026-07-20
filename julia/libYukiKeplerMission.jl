@@ -11,9 +11,9 @@ const libYukiKeplerMissionBJDREFI = 2454833.0;
 
 # Convert Time of Kepler Lightcurve to BJD.
 # TODO: Validate & Example.
-function libYukiKeplerMissionConvertLightCurveTimeToBJD(time::AbstractVector{<:Real}, flux::AbstractVector{<:Real})
-	return time .+ libYukiKeplerMissionBJDREFI, flux;
-end
+# function libYukiKeplerMissionConvertLightCurveTimeToBJD!(lightCurve::libYukiTransitLightCurve)
+# 	lightCurve.time .+= libYukiKeplerMissionBJDREFI;
+# end
 
 function libYukiKeplerMissionLoadLightCurveFromFITS(KeplerID::Int, mastKeplerDownloadPath::String)
 	KeplerIDStr = lpad(KeplerID, 9, '0')
@@ -29,18 +29,19 @@ function libYukiKeplerMissionLoadLightCurveFromFITS(KeplerID::Int, mastKeplerDow
 	end
 	sort!(fitsPaths);
 
-	lightCurve = libYukiTransitLightCurve();
+	lightCurve = libYukiTransitLightCurve([], [], []);
 	for fitsPath in fitsPaths
-		time, flux, fluxErr = FITS(fitsPath, "r") do file
+		time, timeCorr, flux, fluxErr = FITS(fitsPath, "r") do file
 			table = file[2];
 			return (
 				read(table, "TIME"),
+				read(table, "TIMECORR"),
 				read(table, "PDCSAP_FLUX"),
 				read(table, "PDCSAP_FLUX_ERR"),
 			);
 		end
 		
-		append!(lightCurve.time, time)
+		append!(lightCurve.time, time .+ timeCorr .+ libYukiKeplerMissionBJDREFI);
 		append!(lightCurve.flux, flux)
 		append!(lightCurve.fluxErr, fluxErr)
 	end
