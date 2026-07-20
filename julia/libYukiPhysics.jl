@@ -3,91 +3,8 @@ using Measurements, ForwardDiff, Dates
 include("libYukiBasic.jl")
 include("libYukiConstant.jl")
 include("libYukiMath.jl")
-
-"""
-	libYukiPhysicsBody(
-		name, 
-		position, 
-		velocity, 
-		mass, 
-		charge, 
-		radius
-	)
-Define a physics body with position, velocity, mass, 
-charge, and radius.
-# Arguments
-- `name`: Name of the body.
-- `position`: Initial position vector (3D).
-- `velocity`: Initial velocity vector (3D).
-- `mass`: Mass of the body.
-- `charge`: Electric charge of the body.
-- `radius`: Radius of the body.
-# Returns
-- `libYukiPhysicsBody` instance.
-# Notes
-- Position and velocity are stored as vectors of 3D 
-vectors to allow for time evolution.
-# Example
-```julia
-	body = libYukiPhysicsBody(
-		"bodyA", 
-		[
-			0 ± 0.1, 
-			10 ± 0.3, 
-			20 ± 0.5
-		], [
-			0.1 ± 0, 
-			1 ± 0.1, 
-			0.2 ± 0.01
-		], 
-		100 ± 0.3, 
-		12 ± 0.24, 
-		50 ± 1
-	)
-```
-"""
-struct libYukiPhysicsBody{
-		TP<:Real, 
-		TM<:Real, 
-		TC<:Real, 
-		TR<:Real
-}
-	name::String
-	position::Vector{SVector{3, TP}}
-	velocity::Vector{SVector{3, TP}}
-	mass::TM
-	charge::TC
-	radius::TR
-end
-function libYukiPhysicsBody(
-	name, 
-	position::AbstractVector{TP}, 
-	velocity::AbstractVector{TP}, 
-	mass::TM, 
-	charge::TC, 
-	radius::TR
-) where {TP<:Real, TM<:Real, TC<:Real, TR<:Real}
-	length(position) == 3 || 
-		throw(ArgumentError("position must have length 3"))
-    length(velocity) == 3 || 
-		throw(ArgumentError("velocity must have length 3"))
-	return libYukiPhysicsBody{TP, TM, TC, TR}(
-		name, 
-		[SVector{3, TP}(position)], 
-		[SVector{3, TP}(velocity)], 
-		mass, 
-		charge, 
-		radius
-	);
-end
-
-struct libYukiPhysicsField
-	field::Function
-	libYukiPhysicsField(::Function) = new(field);
-end
-libYukiPhysicsField(
-	field::Function
-) = libYukiPhysicsField(field);
+include("libYukiPhysicsBody.jl")
+include("libYukiPhysicsField.jl")
 
 """
 	libYukiPhysicsKineticEnergy(
@@ -123,7 +40,7 @@ function libYukiPhysicsKineticEnergy(
 )
 	return libYukiPhysicsKineticEnergy.(
 		body.mass, 
-		body.velocity
+		body.trajectory.states[end].velocity
 	);
 end
 function libYukiPhysicsKineticEnergy(
@@ -184,7 +101,7 @@ libYukiPhysicsMomentum(
 ) = 
 	libYukiPhysicsMomentum.(
 		body.mass, 
-		body.velocity
+		body.trajectory.states[end].velocity
 	);
 function libYukiPhysicsMomentum(
 	mass::Real, 
@@ -201,6 +118,13 @@ libYukiPhysicsMomentum(
 	mass::Real, 
 	velocity::SVector{3, <:Real}
 ) = mass .* velocity;
+
+
+
+
+
+
+
 
 
 # Derive gravitational circular motion's orbit radius from source mass and orbit period.

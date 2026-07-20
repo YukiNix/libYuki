@@ -7,6 +7,13 @@ include("libYukiConstant.jl")
 include("libYukiMath.jl")
 include("libYukiPhysics.jl")
 
+mutable struct libYukiTransitLightCurve
+	time::AbstractVector
+	flux::AbstractVector
+	fluxErr::AbstractVector
+	libYukiTransitLightCurve() = new([], [], []);
+end
+
 # Quadratic limb-darkening transit flux model.
 # Dependency: Turing, Transits, Orbits.
 # TODO: Validate & Example.
@@ -17,6 +24,31 @@ include("libYukiPhysics.jl")
 	for i in eachindex(t)
 		f[i] ~ Normal(fModel[i], σ)
 	end
+end
+
+function libYukiTransitNormalizeLightCurve!(lightCurve::libYukiTransitLightCurve)
+	medianFlux = median(lightCurve.flux);
+	if !isfinite(medianFlux) || medianFlux == 0.0
+		error("Normalization failed: median flux is not finite or zero.")
+	end
+	lightCurve.flux = lightCurve.flux ./ medianFlux;
+	lightCurve.fluxErr = lightCurve.fluxErr ./ abs(medianFlux);
+
+	medianFlux = median(lightCurve.flux);
+	lightCurve.flux ./= medianFlux;
+	lightCurve.fluxErr ./= medianFlux;
+end
+
+function libYukiTransitGetValidLightCurve!(lightCurve::libYukiTransitLightCurve)
+	validMask = isfinite.(lightCurve.time) .& isfinite.(lightCurve.flux) .& isfinite.(lightCurve.fluxErr) .& (lightCurve.fluxErr .> 0);
+	lightCurve.time = lightCurve.time[validMask];
+	lightCurve.flux = lightCurve.flux[validMask];
+	lightCurve.fluxErr = lightCurve.fluxErr[validMask];
+
+	sortIdx = sortperm(lightCurve.time);
+	lightCurve.time = map(x -> Float64(x), lightCurve.time[sortIdx]);
+	lightCurve.flux = map(x -> Float64(x), lightCurve.flux[sortIdx]);
+	lightCurve.fluxErr = map(x -> Float64(x), lightCurve.fluxErr[sortIdx]);
 end
 
 # Transit flux with limb-darkening.

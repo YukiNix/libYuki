@@ -1,4 +1,4 @@
-using HTTP, DataFrames, Dates, Tables, PyCall, Measurements, CSV, JLD2;
+using HTTP, DataFrames, Dates, Tables, PyCall, Measurements, CSV, JLD2, FITSIO;
 
 include("libYukiBasic.jl")
 include("libYukiConstant.jl")
@@ -11,18 +11,67 @@ const libYukiKeplerMissionBJDREFI = 2454833.0;
 
 # Convert Time of Kepler Lightcurve to BJD.
 # TODO: Validate & Example.
-function libYukiKeplerMissionConvertLightcurveTimeToBJD(time::AbstractVector{<:Real}, flux::AbstractVector{<:Real})
+function libYukiKeplerMissionConvertLightCurveTimeToBJD(time::AbstractVector{<:Real}, flux::AbstractVector{<:Real})
 	return time .+ libYukiKeplerMissionBJDREFI, flux;
+end
+
+function libYukiKeplerMissionLoadLightCurveFromFITS(KeplerID::Int, mastKeplerDownloadPath::String)
+	KeplerIDStr = lpad(KeplerID, 9, '0')
+	targetDirectory = joinpath(mastKeplerDownloadPath,"kplr$(KeplerIDStr)_lc_Q111111111111111111");
+
+	fitsPaths::Vector{String} = String[];
+	for (root, _, files) in walkdir(targetDirectory)
+		for filename in files
+			if startswith(filename, "kplr$(KeplerIDStr)-") && endswith(filename, "_llc.fits")
+				push!(fitsPaths, joinpath(root, filename));
+			end
+		end
+	end
+	sort!(fitsPaths);
+
+	lightCurve = libYukiTransitLightCurve();
+	for fitsPath in fitsPaths
+		time, flux, fluxErr = FITS(fitsPath, "r") do file
+			table = file[2];
+			return (
+				read(table, "TIME"),
+				read(table, "PDCSAP_FLUX"),
+				read(table, "PDCSAP_FLUX_ERR"),
+			);
+		end
+		
+		append!(lightCurve.time, time)
+		append!(lightCurve.flux, flux)
+		append!(lightCurve.fluxErr, fluxErr)
+	end
+	return lightCurve;
+end
+
+# Load Kepler confirmed planets list.
+# Dependency: JLD2.
+# TODO: Validate & Example.
+function libYukiKeplerMissionLoadConfirmedExoplanetInformation(saveFilePath::String = "KeplerConfirmedPlanets.jld2")
+	@load saveFilePath convertedExoplanetInformationData;
+	return convertedExoplanetInformationData;
+end
+
+# Save Kepler confirmed planets list.
+# Dependency: JLD2.
+# TODO: Validate & Example.
+function libYukiKeplerMissionSaveConfirmedExoplanetInformation(convertedExoplanetInformationData, saveFilePath::String = "KeplerConfirmedPlanets.jld2")
+	@save saveFilePath convertedExoplanetInformationData;
 end
 
 # Convert Kepler planets list to convenient format with uncertainty.
 # Dependency: DataFrames, Measurements.
 # TODO: Validate & Example.
-function libYukiKeplerMissionConvertExoplanetInformation(keplerConfirmedPlanetsFrame)
+function libYukiKeplerMissionConvertExoplanetInformation(keplerConfirmedPlanetsFrame, keplerConfirmedPlanetsNameFrame)
 
-	convertedExoplanetInformationFrame = DataFrame(
+	convertedExoplanetInformationData = DataFrame(
 		planetName = Union{String, Missing}[],
 		hostName = Union{String, Missing}[],
+		KeplerID = Union{Int, Missing}[],
+		KOIName = Union{String, Missing}[],
 		systemDistance = Union{Measurement, Missing}[],						# pc
 		planetOrbitPeriod = Union{Measurement, Missing}[],						# day
 		planetOrbitSemiMajorAxis = Union{Measurement, Missing}[],				# AU
@@ -43,6 +92,9 @@ function libYukiKeplerMissionConvertExoplanetInformation(keplerConfirmedPlanetsF
 	for index in 1 : length(keplerConfirmedPlanetsFrame.pl_name)
 		planetName::Union{String, Missing} = keplerConfirmedPlanetsFrame.pl_name[index];
 		hostName::Union{String, Missing} = keplerConfirmedPlanetsFrame.hostname[index];
+		planetNameIndex = findfirst(x -> x == planetName, keplerConfirmedPlanetsNameFrame.pl_name)
+		KeplerID::Union{Int, Missing} = isempty(planetNameIndex) ? missing : keplerConfirmedPlanetsNameFrame.kepid[planetNameIndex];
+		KOIName::Union{String, Missing} = isempty(planetNameIndex) ? missing : keplerConfirmedPlanetsNameFrame.koi_name[planetNameIndex];
 		systemDistance = libYukiBasicMeasurementWithMissing(keplerConfirmedPlanetsFrame.sy_dist[index], keplerConfirmedPlanetsFrame.sy_disterr1[index], keplerConfirmedPlanetsFrame.sy_disterr2[index]);
 		planetOrbitPeriod = libYukiBasicMeasurementWithMissing(keplerConfirmedPlanetsFrame.pl_orbper[index], keplerConfirmedPlanetsFrame.pl_orbpererr1[index], keplerConfirmedPlanetsFrame.pl_orbpererr2[index]);
 		planetOrbitSemiMajorAxis = libYukiBasicMeasurementWithMissing(keplerConfirmedPlanetsFrame.pl_orbsmax[index], keplerConfirmedPlanetsFrame.pl_orbsmaxerr1[index], keplerConfirmedPlanetsFrame.pl_orbsmaxerr2[index]);
@@ -60,9 +112,11 @@ function libYukiKeplerMissionConvertExoplanetInformation(keplerConfirmedPlanetsF
 		planetTransitTimeConjunction = libYukiBasicMeasurementWithMissing(keplerConfirmedPlanetsFrame.pl_tranmid[index], keplerConfirmedPlanetsFrame.pl_tranmiderr1[index], keplerConfirmedPlanetsFrame.pl_tranmiderr2[index]);
 		planetTransitTimeReference::Union{String, Missing} = keplerConfirmedPlanetsFrame.pl_tranmid_systemref[index];
 
-		push!(convertedExoplanetInformationFrame, (; 
+		push!(convertedExoplanetInformationData, (;
 			planetName = planetName, 
 			hostName = hostName,
+			KeplerID = KeplerID,
+			KOIName = KOIName,
 			systemDistance = systemDistance,
 			planetOrbitPeriod = planetOrbitPeriod,
 			planetOrbitSemiMajorAxis = planetOrbitSemiMajorAxis,
@@ -82,28 +136,13 @@ function libYukiKeplerMissionConvertExoplanetInformation(keplerConfirmedPlanetsF
 
 	end
 
-	return convertedExoplanetInformationFrame;
-end
-
-# Load Kepler confirmed planets list.
-# Dependency: JLD2.
-# TODO: Validate & Example.
-function libYukiKeplerMissionLoadConfirmedExoplanetInformation()
-	@load "KeplerConfirmedPlanets.jld2" keplerConfirmedPlanetsData;
-	return keplerConfirmedPlanetsData;
-end
-
-# Save Kepler confirmed planets list.
-# Dependency: JLD2.
-# TODO: Validate & Example.
-function libYukiKeplerMissionSaveConfirmedExoplanetInformation(keplerConfirmedPlanetsData)
-	@save "KeplerConfirmedPlanets.jld2" keplerConfirmedPlanetsData;
+	return convertedExoplanetInformationData;
 end
 
 # Get Kepler confirmed planets list from NASA Exoplanet Archive.
 # Dependency: HTTP, DataFrames, Dates, CSV.
 # TODO: Validate & Example.
-function libYukiKeplerMissionGetConfirmedExoplanetInfomation()
+function libYukiKeplerMissionGetConfirmedExoplanetInformation()
 	TAPBaseServiceURL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=";
 	TAPDataTypes = "pl_name,hostname,sy_dist,sy_disterr1,sy_disterr2,pl_orbper,pl_orbpererr1,pl_orbpererr2,pl_orbsmax,pl_orbsmaxerr1,pl_orbsmaxerr2,pl_orbeccen,pl_orbeccenerr1,pl_orbeccenerr2,pl_rade,pl_radeerr1,pl_radeerr2,st_rad,st_raderr1,st_raderr2,pl_bmasse,pl_bmasseerr1,pl_bmasseerr2,pl_bmassprov,st_mass,st_masserr1,st_masserr2,st_teff,st_tefferr1,st_tefferr2,st_met,st_meterr1,st_meterr2,st_metratio,pl_orbincl,pl_orbinclerr1,pl_orbinclerr2,pl_tranmid,pl_tranmiderr1,pl_tranmiderr2,pl_tranmid_systemref";
 	TAPDatabaseName = "pscomppars";
@@ -119,55 +158,86 @@ function libYukiKeplerMissionGetConfirmedExoplanetInfomation()
 	return keplerConfirmedPlanetsFrame;
 end
 
+function libYukiKeplerMissionGetConfirmedExoplanetName()
+	TAPBaseServiceURL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=";
+	TAPDataTypes = "kepid,koi_name,kepler_name,pl_name";
+	TAPDatabaseName = "keplernames";
+
+	println("#INFO:[" * string(now()) * "] Waiting server response.");
+	TAPResponse = HTTP.get(TAPBaseServiceURL * "select+" * TAPDataTypes * "+from+" * TAPDatabaseName * "+where+pl_name+like+'Kepler%'&format=csv");
+	keplerConfirmedPlanetsNameData = CSV.File(TAPResponse.body);
+
+	println("#INFO:[" * string(now()) * "] Get " * string(length(keplerConfirmedPlanetsNameData)) * " confirmed exoplanets from Kepler.");
+
+	keplerConfirmedPlanetsNameFrame = DataFrame(keplerConfirmedPlanetsNameData);
+
+	return keplerConfirmedPlanetsNameFrame;
+end
+
 # Download Kepler lightcurve by LightKurve(from Python). 
 # Dependency: PyCall, HTTP, DataFrames, Dates, Measurements, Tables, lightkurve(from Python).
 # TODO: Validate & Example.
-function libYukiKeplerMissionDownloadLightCurve(stellarOriginalName::String)
-	times = Measurement{Float64}[];
-	fluxes = Measurement{Float64}[];
+# function libYukiKeplerMissionDownloadLightCurve(stellarOriginalName::String)
+# 	times = Measurement{Float64}[];
+# 	fluxes = Measurement{Float64}[];
 
-	println("#INFO:[" * string(now()) * "] Finding planetary system of " * stellarOriginalName * "...");
+# 	println("#INFO:[" * string(now()) * "] Finding planetary system of " * stellarOriginalName * "...");
 
-	lightKurve = pyimport("lightkurve");
-	searchResult = lightKurve.search_lightcurve(stellarOriginalName, author="Kepler");
+# 	lightKurve = pyimport("lightkurve");
+# 	searchResult = lightKurve.search_lightcurve(stellarOriginalName, author="Kepler");
 
-	println("#INFO:[" * string(now()) * "] Found " * string(length(searchResult)) * " sectors/quarters of " * stellarOriginalName * "...");
+# 	println("#INFO:[" * string(now()) * "] Found " * string(length(searchResult)) * " sectors/quarters of " * stellarOriginalName * "...");
 
-	println("#INFO:[" * string(now()) * "]\t Update found, updating...");
-	searchResultLength = length(searchResult);
-	for index in 1 : searchResultLength
-		result = searchResult[index];
+# 	println("#INFO:[" * string(now()) * "]\t Update found, updating...");
+# 	searchResultLength = length(searchResult);
+# 	for index in 1 : searchResultLength
+# 		result = searchResult[index];
 
-		println("#INFO:[" * string(now()) * "]\t Downloading " * string(index) * "/" * string(length(searchResult)) * " curve...");
+# 		println("#INFO:[" * string(now()) * "]\t Downloading " * string(index) * "/" * string(length(searchResult)) * " curve...");
 
-		try
-			subTimes = Measurement{Float64}[];
-			subFluxes = Measurement{Float64}[];
+# 		try
+# 			subTimes = Measurement{Float64}[];
+# 			subFluxes = Measurement{Float64}[];
 
-			kurve = result.download();
-			for (time, flux, flux_err, timecorr) in zip(kurve.time, kurve.flux, kurve.flux_err, kurve.timecorr)
-				try
-					realFlux = flux[1] ± flux_err[1];
-					realTime = (time.value + timecorr[1][1]) ± 0.;
-					if isnan(realFlux) || isnan(realTime)
-						continue;
-					end
+# 			kurve = result.download();
+# 			for (time, flux, flux_err, timecorr) in zip(kurve.time, kurve.flux, kurve.flux_err, kurve.timecorr)
+# 				try
+# 					realFlux = flux[1] ± flux_err[1];
+# 					realTime = (time.value + timecorr[1][1]) ± 0.;
+# 					if isnan(realFlux) || isnan(realTime)
+# 						continue;
+# 					end
 
-					append!(subTimes, realTime);
-					append!(subFluxes, realFlux);
-				catch err
-					println(err);
-				end
-			end
-			detrendedTime, detrendedFluxes = libYukiTransitDetrendByWotan(subTimes, subFluxes, 0. ± 0., 0. ± 0., 0. ± 0.);
-			append!(times, detrendedTime);
-			append!(fluxes, detrendedFluxes);
-		catch err
-			println("#ERRO:\t\t Curve download faild:");
-			println(err);
-			continue;
-		end
-	end
+# 					append!(subTimes, realTime);
+# 					append!(subFluxes, realFlux);
+# 				catch err
+# 					println(err);
+# 				end
+# 			end
+# 			detrendedTime, detrendedFluxes = libYukiTransitDetrendByWotan(subTimes, subFluxes, 0. ± 0., 0. ± 0., 0. ± 0.);
+# 			append!(times, detrendedTime);
+# 			append!(fluxes, detrendedFluxes);
+# 		catch err
+# 			println("#ERRO:\t\t Curve download faild:");
+# 			println(err);
+# 			continue;
+# 		end
+# 	end
 
-	return times, fluxes; 
+# 	return times, fluxes; 
+# end
+
+function libYukiKeplerMissionDownloadLightCurveFITS(stellarOriginalName::String, saveFilePath::String)
+	lightkurve = pyimport("lightkurve")
+	searchResult = lightkurve.search_lightcurve(
+		stellarOriginalName;
+		mission = "Kepler",
+		author = "Kepler",
+		exptime = "long",
+	);
+
+	searchResult.download_all(
+		quality_bitmask = "none",
+		download_dir = saveFilePath,
+	);
 end
