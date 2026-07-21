@@ -4,28 +4,28 @@ include("libYukiBasic.jl")
 include("libYukiConstant.jl")
 include("libYukiMath.jl")
 include("libYukiPhysics.jl")
-include("libYukiTransit.jl")
+include("libYukiAstronomyTransit.jl")
 
 # Kepler Time BJD REFI: BJD Time = Kepler Time + 2454833.0;
-const libYukiKeplerMissionBJDREFI = 2454833.0;
+const libYukiAstronomyKeplerMissionBJDREFI = 2454833.0;
 
 """
-	libYukiKeplerMissionLoadLightCurveFromFITS(
+	libYukiAstronomyKeplerMissionLoadLightCurveFromFITS(
 		KeplerID, 
 		mastKeplerDownloadPath
 	)
-Load the light curve data for a given Kepler ID from FITS files located in the specified directory. The function reads the time, flux, and flux error data from the FITS files and returns a `libYukiTransitLightCurve` instance containing the combined data.
+Load the light curve data for a given Kepler ID from FITS files located in the specified directory. The function reads the time, flux, and flux error data from the FITS files and returns a `libYukiAstronomyTransitLightCurve` instance containing the combined data.
 # Arguments
 - `KeplerID`: The Kepler ID of the target star.
 - `mastKeplerDownloadPath`: The path to the directory where the Kepler light curve FITS files are stored.
 # Returns
-- An instance of `libYukiTransitLightCurve` containing the time, flux, and flux error data for the specified Kepler ID.
+- An instance of `libYukiAstronomyTransitLightCurve` containing the time, flux, and flux error data for the specified Kepler ID.
 # Notes
 - The function assumes that the FITS files are named in the format `kplr<KeplerID>-<quarter>_llc.fits` and are located in subdirectories of the specified `mastKeplerDownloadPath`.
-- The time values are adjusted to Barycentric Julian Date (BJD) by adding the Kepler time reference value (`libYukiKeplerMissionBJDREFI`).
+- The time values are adjusted to Barycentric Julian Date (BJD) by adding the Kepler time reference value (`libYukiAstronomyKeplerMissionBJDREFI`).
 - The FITS may cross multiple quarters, and the function will combine the data from all relevant FITS files, so that there could be some gaps in the time series and some stage between different quarters.
 """
-function libYukiKeplerMissionLoadLightCurveFromFITS(KeplerID::Int, mastKeplerDownloadPath::String)
+function libYukiAstronomyKeplerMissionLoadLightCurveFromFITS(KeplerID::Int, mastKeplerDownloadPath::String)
 	KeplerIDStr = lpad(KeplerID, 9, '0')
 	targetDirectory = joinpath(mastKeplerDownloadPath,"kplr$(KeplerIDStr)_lc_Q111111111111111111");
 
@@ -39,7 +39,7 @@ function libYukiKeplerMissionLoadLightCurveFromFITS(KeplerID::Int, mastKeplerDow
 	end
 	sort!(fitsPaths);
 
-	lightCurve = libYukiTransitLightCurve([], [], []);
+	lightCurve = libYukiAstronomyTransitLightCurve([], [], []);
 	for fitsPath in fitsPaths
 		time, timeCorr, flux, fluxErr = FITS(fitsPath, "r") do file
 			table = file[2];
@@ -51,7 +51,7 @@ function libYukiKeplerMissionLoadLightCurveFromFITS(KeplerID::Int, mastKeplerDow
 			);
 		end
 		
-		append!(lightCurve.time, time .+ timeCorr .+ libYukiKeplerMissionBJDREFI);
+		append!(lightCurve.time, time .+ timeCorr .+ libYukiAstronomyKeplerMissionBJDREFI);
 		append!(lightCurve.flux, flux)
 		append!(lightCurve.fluxErr, fluxErr)
 	end
@@ -59,7 +59,7 @@ function libYukiKeplerMissionLoadLightCurveFromFITS(KeplerID::Int, mastKeplerDow
 end
 
 """
-	libYukiKeplerMissionLoadConfirmedExoplanetInformation(
+	libYukiAstronomyKeplerMissionLoadConfirmedExoplanetInformation(
 		saveFilePath
 	)
 Load the converted confirmed exoplanet information from the Kepler mission from a JLD2 file.
@@ -68,13 +68,13 @@ Load the converted confirmed exoplanet information from the Kepler mission from 
 # Returns
 - A DataFrame containing the converted confirmed exoplanet information from the Kepler mission.
 """
-function libYukiKeplerMissionLoadConfirmedExoplanetInformation(saveFilePath::String = "KeplerConfirmedPlanets.jld2")
+function libYukiAstronomyKeplerMissionLoadConfirmedExoplanetInformation(saveFilePath::String = "KeplerConfirmedPlanets.jld2")
 	@load saveFilePath convertedExoplanetInformationData;
 	return convertedExoplanetInformationData;
 end
 
 """
-	libYukiKeplerMissionSaveConfirmedExoplanetInformation(
+	libYukiAstronomyKeplerMissionSaveConfirmedExoplanetInformation(
 		convertedExoplanetInformationData, 
 		saveFilePath
 	)
@@ -83,12 +83,12 @@ Save the converted confirmed exoplanet information from the Kepler mission to a 
 - `convertedExoplanetInformationData`: A DataFrame containing the converted confirmed exoplanet information from the Kepler mission.
 - `saveFilePath`: The path to the JLD2 file where the data will be saved.
 """
-function libYukiKeplerMissionSaveConfirmedExoplanetInformation(convertedExoplanetInformationData, saveFilePath::String = "KeplerConfirmedPlanets.jld2")
+function libYukiAstronomyKeplerMissionSaveConfirmedExoplanetInformation(convertedExoplanetInformationData, saveFilePath::String = "KeplerConfirmedPlanets.jld2")
 	@save saveFilePath convertedExoplanetInformationData;
 end
 
 """
-	libYukiKeplerMissionConvertExoplanetInformation(
+	libYukiAstronomyKeplerMissionConvertExoplanetInformation(
 		keplerConfirmedPlanetsFrame, 
 		keplerConfirmedPlanetsNameFrame
 	)
@@ -99,7 +99,7 @@ Convert the confirmed exoplanet information from the Kepler mission into a struc
 # Returns
 - A DataFrame containing the converted confirmed exoplanet information from the Kepler mission.
 """
-function libYukiKeplerMissionConvertExoplanetInformation(keplerConfirmedPlanetsFrame, keplerConfirmedPlanetsNameFrame)
+function libYukiAstronomyKeplerMissionConvertExoplanetInformation(keplerConfirmedPlanetsFrame, keplerConfirmedPlanetsNameFrame)
 
 	convertedExoplanetInformationData = DataFrame(
 		planetName = Union{String, Missing}[],
@@ -174,12 +174,12 @@ function libYukiKeplerMissionConvertExoplanetInformation(keplerConfirmedPlanetsF
 end
 
 """
-	libYukiKeplerMissionGetConfirmedExoplanetInformation()
+	libYukiAstronomyKeplerMissionGetConfirmedExoplanetInformation()
 Get the confirmed exoplanet information from the Kepler mission using the NASA Exoplanet Archive TAP service. The function retrieves various parameters for each confirmed exoplanet, including its name, host star, distance, orbital period, semi-major axis, eccentricity, radius, mass, and other relevant properties.
 # Returns
 - A DataFrame containing the confirmed exoplanet information from the Kepler mission.
 """
-function libYukiKeplerMissionGetConfirmedExoplanetInformation()
+function libYukiAstronomyKeplerMissionGetConfirmedExoplanetInformation()
 	TAPBaseServiceURL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=";
 	TAPDataTypes = "pl_name,hostname,sy_dist,sy_disterr1,sy_disterr2,pl_orbper,pl_orbpererr1,pl_orbpererr2,pl_orbsmax,pl_orbsmaxerr1,pl_orbsmaxerr2,pl_orbeccen,pl_orbeccenerr1,pl_orbeccenerr2,pl_rade,pl_radeerr1,pl_radeerr2,st_rad,st_raderr1,st_raderr2,pl_bmasse,pl_bmasseerr1,pl_bmasseerr2,pl_bmassprov,st_mass,st_masserr1,st_masserr2,st_teff,st_tefferr1,st_tefferr2,st_met,st_meterr1,st_meterr2,st_metratio,pl_orbincl,pl_orbinclerr1,pl_orbinclerr2,pl_tranmid,pl_tranmiderr1,pl_tranmiderr2,pl_tranmid_systemref";
 	TAPDatabaseName = "pscomppars";
@@ -196,12 +196,12 @@ function libYukiKeplerMissionGetConfirmedExoplanetInformation()
 end
 
 """
-	libYukiKeplerMissionGetConfirmedExoplanetName()
+	libYukiAstronomyKeplerMissionGetConfirmedExoplanetName()
 Get the names of confirmed exoplanets from the Kepler mission using the NASA Exoplanet Archive TAP service. The function retrieves the Kepler ID, KOI name, and confirmed exoplanet name for each planet.
 # Returns
 - A DataFrame containing the Kepler ID, KOI name, and confirmed exoplanet name for each planet.
 """
-function libYukiKeplerMissionGetConfirmedExoplanetName()
+function libYukiAstronomyKeplerMissionGetConfirmedExoplanetName()
 	TAPBaseServiceURL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=";
 	TAPDataTypes = "kepid,koi_name,kepler_name,pl_name";
 	TAPDatabaseName = "keplernames";
@@ -218,7 +218,7 @@ function libYukiKeplerMissionGetConfirmedExoplanetName()
 end
 
 """
-	libYukiKeplerMissionDownloadLightCurveFITS(
+	libYukiAstronomyKeplerMissionDownloadLightCurveFITS(
 		stellarOriginalName, 
 		saveFilePath
 	)
@@ -227,7 +227,7 @@ end
 - `stellarOriginalName`: The original name of the star for which to download the light curve.
 - `saveFilePath`: The path where the downloaded FITS files will be saved.
 """
-function libYukiKeplerMissionDownloadLightCurveFITS(stellarOriginalName::String, saveFilePath::String)
+function libYukiAstronomyKeplerMissionDownloadLightCurveFITS(stellarOriginalName::String, saveFilePath::String)
 	lightkurve = pyimport("lightkurve")
 	searchResult = lightkurve.search_lightcurve(
 		stellarOriginalName;
