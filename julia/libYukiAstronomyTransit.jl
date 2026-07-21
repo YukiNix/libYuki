@@ -34,9 +34,9 @@ include("libYukiAstronomyTransitLimbDarkening.jl")
 function libYukiAstronomyTransitSplitLightCurveByPeriod(lightCurve::libYukiAstronomyTransitLightCurve, transitCentreTime::Real, planetOrbitPeriod::Real)
 	nPeriods = ceil(Int, (maximum(lightCurve.time) - minimum(lightCurve.time)) / planetOrbitPeriod);
 	splitLightCurves = Vector{libYukiAstronomyTransitLightCurve}(undef, nPeriods);
-	firstTransitTime = transitCentreTime - planetOrbitPeriod / 2;
+	firstPeriodTime = transitCentreTime - planetOrbitPeriod / 2;
 	for index in 1 : nPeriods
-		startTime = firstTransitTime + (index - 1) * planetOrbitPeriod;
+		startTime = firstPeriodTime + (index - 1) * planetOrbitPeriod;
 		endTime = startTime + planetOrbitPeriod;
 		mask = (lightCurve.time .>= startTime) .& (lightCurve.time .< endTime);
 		if any(mask)
@@ -170,7 +170,7 @@ end
 		lightCurve, 
 		binBoxNumber
 	)
-Bin a light curve into a specified number of bins, averaging the flux and flux error within each bin. The binned light curve is returned with time values corresponding to the center of each bin.
+Bin a light curve into a specified number of bins, averaging the flux and flux error within each bin. The binned light curve is returned with time values corresponding to the centre of each bin.
 # Arguments
 - `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve`.
 - `binBoxNumber`: The number of bins to divide the light curve into.
@@ -208,11 +208,11 @@ end
 		planetOrbitPeriod, 
 		transitCentreTime
 	)
-Fold a light curve based on the planet's orbital period and the transit center time. The time values are adjusted to be within the range of -P/2 to P/2, where P is the planet's orbital period. The light curve is then sorted by the adjusted time values.
+Fold a light curve based on the planet's orbital period and the transit centre time. The time values are adjusted to be within the range of -P/2 to P/2, where P is the planet's orbital period. The light curve is then sorted by the adjusted time values.
 # Arguments
 - `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve`.
 - `planetOrbitPeriod`: The orbital period of the planet.
-- `transitCentreTime`: The time of the transit center.
+- `transitCentreTime`: The time of the transit centre.
 # Returns
 - A new instance of `libYukiAstronomyTransitLightCurve` with folded time values.
 - Notes
