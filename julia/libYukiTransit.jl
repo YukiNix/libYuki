@@ -29,17 +29,23 @@ mutable struct libYukiTransitLightCurve
 	libYukiTransitLightCurve(time, flux, fluxErr) = new(time, flux, fluxErr);
 end
 
-# Quadratic limb-darkening transit flux model.
-# Dependency: Turing, Transits, Orbits.
-# TODO: Validate & Example.
-@model function libYukiTransitQuadraticLimbDarkeningTransitFluxModel(t, orbitPeriod, transitDuration, planetStellarRadiusRatio, f)
-	u ~ Kipping13()
-	σ ~ Truncated(Cauchy(0, 0.01), 0, Inf)
-	fModel = libYukiTransitQuadraticLimbDarkeningTransitFlux(t, orbitPeriod, transitDuration, planetStellarRadiusRatio, collect(u))
-	for i in eachindex(t)
-		f[i] ~ Normal(fModel[i], σ)
-	end
-end
+include("libYukiTransitLimbDarkening.jl")
+
+# function libYukiTransitSplitLightCurveByPeriod(lightCurve::libYukiTransitLightCurve, planetOrbitPeriod::Real)
+# 	nPeriods = ceil(Int, (maximum(lightCurve.time) - minimum(lightCurve.time)) / planetOrbitPeriod);
+# 	splitLightCurves = Vector{libYukiTransitLightCurve}(undef, nPeriods);
+# 	for index in 1 : nPeriods
+# 		startTime = minimum(lightCurve.time) + (index - 1) * planetOrbitPeriod;
+# 		endTime = startTime + planetOrbitPeriod;
+# 		mask = (lightCurve.time .>= startTime) .& (lightCurve.time .< endTime);
+# 		splitLightCurves[index] = libYukiTransitLightCurve(
+# 			lightCurve.time[mask],
+# 			lightCurve.flux[mask],
+# 			lightCurve.fluxErr[mask]
+# 		);
+# 	end
+# 	return splitLightCurves;
+# end
 
 """
 	libYukiTransitLoadLightCurveFromFITS(
@@ -150,54 +156,37 @@ function libYukiTransitGetValidLightCurve(lightCurve::libYukiTransitLightCurve)
 	return lightCurveValid;
 end
 
-# Transit flux with limb-darkening.
-# Dependency: Transits, Orbits.
-# TODO: Validate & Example.
-function libYukiTransitQuadraticLimbDarkeningTransitFlux(times::AbstractVector{<:Real}, orbitPeriod::Real, transitDuration::Real, planetStellarRadiusRatio::Real, limbQuadraticDarkeningParameters::AbstractVector{<:Real}) 
-	orbit = SimpleOrbit(period = orbitPeriod, duration = transitDuration);
-    ld = QuadLimbDark(limbQuadraticDarkeningParameters);
-	return ld.(Ref(orbit), times, planetStellarRadiusRatio)
-end
-
-# Transit flux with polynomial limb-darkening.
-# Dependency: Transits, Orbits.
-# TODO: Validate & Example.
-function libYukiTransitPolynomialLimbDarkeningTransitFlux(times::AbstractVector{<:Real}, orbitPeriod::Real, transitDuration::Real, planetStellarRadiusRatio::Real, limbDarkeningParameters::AbstractVector{<:Real}) 
-	orbit = SimpleOrbit(period = orbitPeriod, duration = transitDuration);
-	ld = PolynomialLimbDark(limbDarkeningParameters);
-	return ld.(Ref(orbit), times, planetStellarRadiusRatio)
-end
-
-# Polynomial limb-darkening transit flux model.
-# Dependency: Turing, Transits, Orbits.
-# TODO: Validate & Example.
-@model function libYukiTransitPolynomialLimbDarkeningTransitFluxModel(t, orbitPeriod, transitDuration, planetStellarRadiusRatio, f, nLimbDarkeningParameters)
-	u ~ filldist(Uniform(-1, 1), nLimbDarkeningParameters)
-	σ ~ Truncated(Cauchy(0, 0.01), 0, Inf)
-	fModel = libYukiTransitPolynomialLimbDarkeningTransitFlux(t, orbitPeriod, transitDuration, planetStellarRadiusRatio, collect(u))
-	for i in eachindex(t)
-		f[i] ~ Normal(fModel[i], σ)
-	end
-end
-
-# Bin lightcurve.
-# TODO: Validate & Example.
-function libYukiTransitBinLightCurve(times::AbstractVector{<:Real}, fluxes::AbstractVector{<:Real}, binBoxNumber::Integer) 
-	binEdges = range(minimum(times), maximum(times); length = binBoxNumber + 1)
-    binnedTimes = @. 0.5 * (binEdges[1 : end - 1] + binEdges[2 : end])
-    binnedFluxes = zeros(T, length(binnedTimes))
-    @showprogress for index in eachindex(binnedTimes)
-        mask = (times .>= binEdges[index]) .& (times .< binEdges[index + 1]);
+"""
+	libYukiTransitBinLightCurve(
+		lightCurve, 
+		binBoxNumber
+	)
+Bin a light curve into a specified number of bins, averaging the flux and flux error within each bin. The binned light curve is returned with time values corresponding to the center of each bin.
+# Arguments
+- `lightCurve`: An instance of `libYukiTransitLightCurve`.
+- `binBoxNumber`: The number of bins to divide the light curve into.
+# Returns
+- A new instance of `libYukiTransitLightCurve` containing the binned time, flux, and flux error values.
+"""
+function libYukiTransitBinLightCurve(lightCurve::libYukiTransitLightCurve, binBoxNumber::Integer) 
+	binEdge = range(minimum(lightCurve.time), maximum(lightCurve.time); length = binBoxNumber + 1)
+    binnedTime = @. 0.5 * (binEdge[1 : end - 1] + binEdge[2 : end])
+    binnedFlux = zeros(length(binnedTime))
+	binnedFluxErr = zeros(length(binnedTime))
+   for index in eachindex(binnedTime)
+        mask = (lightCurve.time .>= binEdge[index]) .& (lightCurve.time .< binEdge[index + 1]);
         if any(mask)
-            binnedFluxes[index] = mean(fluxes[mask]);
+            binnedFlux[index] = mean(lightCurve.flux[mask]);
+			binnedFluxErr[index] = sqrt(sum(lightCurve.fluxErr[mask] .^ 2)) / sum(mask);
         else
-            binnedFluxes[index] = NaN;
+            binnedFlux[index] = NaN;
+			binnedFluxErr[index] = NaN;
         end
     end
-    nNaNIndices = findall(x -> !isnan(x), binnedFluxes);
-    return binnedTimes[nNaNIndices], binnedFluxes[nNaNIndices]
-end
+    nNaNIndices = findall(x -> !isnan(x), binnedFlux);
 
+    return libYukiTransitLightCurve(binnedTime[nNaNIndices], binnedFlux[nNaNIndices], binnedFluxErr[nNaNIndices]);
+end
 
 """
 	libYukiTransitFoldLightCurve(
@@ -246,28 +235,28 @@ end
 # Detrending lightcurve with Wotan.
 # Dependency: PyCall, wotan(python package).
 # TODO: Validate & Example.
-function libYukiTransitDetrendByWotan(times::AbstractVector{<:Real}, fluxes::AbstractVector{<:Real}, stellarRadius::Real, stellarMass::Real, planetOrbitPeriod::Real) 
-	pyWotan = pyimport("wotan");
-	if stellarRadius == 0. || stellarMass == 0. || planetOrbitPeriod == 0.
-		window = 0.75;
-	else
-		window = pyWotan.t14(R_s = Measurements.value(stellarRadius), M_s = Measurements.value(stellarMass), P = Measurements.value(planetOrbitPeriod));
-	end
-	sortedTimes, sortedFluxes = libYukiBasicSortElementsByOrderVector(times, fluxes);
-	detrendedFluxes, _ = pyWotan.flatten(Measurements.value.(sortedTimes), Measurements.value.(sortedFluxes), window_length = window, method = "biweight", return_trend = true);
-	return sortedTimes, AbstractVector{<:Real}(detrendedFluxes);
-end
-function libYukiTransitDetrendByWotan(times::AbstractVector{<:Real}, fluxes::AbstractVector{<:Real}, stellarRadius::Real, stellarMass::Real, planetOrbitPeriod::Real) 
-	pyWotan = pyimport("wotan");
-	if stellarRadius == 0. || stellarMass == 0. || planetOrbitPeriod == 0.
-		window = 0.75;
-	else
-		window = pyWotan.t14(R_s = Measurements.value(stellarRadius), M_s = Measurements.value(stellarMass), P = Measurements.value(planetOrbitPeriod));
-	end
-	sortedTimes, sortedFluxes = libYukiBasicSortElementsByOrderVector(times, fluxes);
-	detrendedFluxes, _ = pyWotan.flatten(Measurements.value.(sortedTimes), Measurements.value.(sortedFluxes), window_length = window, method = "biweight", return_trend = true);
-	return sortedTimes, detrendedFluxes .± (Measurements.uncertainty.(sortedFluxes) ./ Measurements.value.(sortedFluxes));
-end
+# function libYukiTransitDetrendByWotan(times::AbstractVector{<:Real}, fluxes::AbstractVector{<:Real}, stellarRadius::Real, stellarMass::Real, planetOrbitPeriod::Real) 
+# 	pyWotan = pyimport("wotan");
+# 	if stellarRadius == 0. || stellarMass == 0. || planetOrbitPeriod == 0.
+# 		window = 0.75;
+# 	else
+# 		window = pyWotan.t14(R_s = Measurements.value(stellarRadius), M_s = Measurements.value(stellarMass), P = Measurements.value(planetOrbitPeriod));
+# 	end
+# 	sortedTimes, sortedFluxes = libYukiBasicSortElementsByOrderVector(times, fluxes);
+# 	detrendedFluxes, _ = pyWotan.flatten(Measurements.value.(sortedTimes), Measurements.value.(sortedFluxes), window_length = window, method = "biweight", return_trend = true);
+# 	return sortedTimes, AbstractVector{<:Real}(detrendedFluxes);
+# end
+# function libYukiTransitDetrendByWotan(times::AbstractVector{<:Real}, fluxes::AbstractVector{<:Real}, stellarRadius::Real, stellarMass::Real, planetOrbitPeriod::Real) 
+# 	pyWotan = pyimport("wotan");
+# 	if stellarRadius == 0. || stellarMass == 0. || planetOrbitPeriod == 0.
+# 		window = 0.75;
+# 	else
+# 		window = pyWotan.t14(R_s = Measurements.value(stellarRadius), M_s = Measurements.value(stellarMass), P = Measurements.value(planetOrbitPeriod));
+# 	end
+# 	sortedTimes, sortedFluxes = libYukiBasicSortElementsByOrderVector(times, fluxes);
+# 	detrendedFluxes, _ = pyWotan.flatten(Measurements.value.(sortedTimes), Measurements.value.(sortedFluxes), window_length = window, method = "biweight", return_trend = true);
+# 	return sortedTimes, detrendedFluxes .± (Measurements.uncertainty.(sortedFluxes) ./ Measurements.value.(sortedFluxes));
+# end
 
 """
 	libYukiTransitTransitDurationEvaluate(
