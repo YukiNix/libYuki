@@ -198,55 +198,50 @@ function libYukiTransitBinLightCurve(times::AbstractVector{<:Real}, fluxes::Abst
     return binnedTimes[nNaNIndices], binnedFluxes[nNaNIndices]
 end
 
+
 """
-	libYukiTransitFoldLightCurve(
-		time,
-		flux,
-		fluxErr, 
-		planetOrbitPeriod, 
-		transitCentreTime
-	)
 	libYukiTransitFoldLightCurve(
 		lightCurve, 
 		planetOrbitPeriod, 
 		transitCentreTime
 	)
-Fold a light curve based on the planet's orbital period and the transit center time.
+	libYukiTransitFoldLightCurve!(
+		lightCurve, 
+		planetOrbitPeriod, 
+		transitCentreTime
+	)
+Fold a light curve based on the planet's orbital period and the transit center time. The time values are adjusted to be within the range of -P/2 to P/2, where P is the planet's orbital period. The light curve is then sorted by the adjusted time values.
 # Arguments
 - `lightCurve`: An instance of `libYukiTransitLightCurve`.
 - `planetOrbitPeriod`: The orbital period of the planet.
 - `transitCentreTime`: The time of the transit center.
 # Returns
-- A new instance of `libYukiTransitLightCurve` with folded time, flux, and flux error.
+- A new instance of `libYukiTransitLightCurve` with folded time values.
+- Notes
+- The function `libYukiTransitFoldLightCurve!` modifies the input light curve in place, while `libYukiTransitFoldLightCurve` returns a new folded light curve.
 """
 function libYukiTransitFoldLightCurve(
-	time::AbstractVector{<:Real}, 
-	flux::AbstractVector{<:Real}, 
-	fluxErr::AbstractVector{<:Real}, 
+	lightCurve::libYukiTransitLightCurve,
 	planetOrbitPeriod::Real, 
 	transitCentreTime::Real
 )
-    foldedTime = ((time .- transitCentreTime) .% planetOrbitPeriod);
-    foldedTime[foldedTime .> planetOrbitPeriod / 2] .-= planetOrbitPeriod;
-
-	sortedIndex = sortperm(foldedTime);
-    foldedTime = foldedTime[sortedIndex];
-	foldedFlux = flux[sortedIndex];
-	foldedFluxErr = fluxErr[sortedIndex];
-
-	return libYukiTransitLightCurve(foldedTime, foldedFlux, foldedFluxErr);
+	lightCurveFolded = deepcopy(lightCurve);
+	libYukiTransitFoldLightCurve!(lightCurveFolded, planetOrbitPeriod, transitCentreTime);
+	return lightCurveFolded;
 end
-libYukiTransitFoldLightCurve(
-	lightCurve::libYukiTransitLightCurve, 
+function libYukiTransitFoldLightCurve!(
+	lightCurve::libYukiTransitLightCurve,
 	planetOrbitPeriod::Real, 
 	transitCentreTime::Real
-) = libYukiTransitFoldLightCurve(
-	lightCurve.time, 
-	lightCurve.flux, 
-	lightCurve.fluxErr, 
-	planetOrbitPeriod, 
-	transitCentreTime
-);
+)
+	lightCurve.time = ((lightCurve.time .- transitCentreTime) .% planetOrbitPeriod);
+	lightCurve.time[lightCurve.time .> planetOrbitPeriod / 2] .-= planetOrbitPeriod;
+
+	sortedIndex = sortperm(lightCurve.time);
+	lightCurve.time = lightCurve.time[sortedIndex];
+	lightCurve.flux = lightCurve.flux[sortedIndex];
+	lightCurve.fluxErr = lightCurve.fluxErr[sortedIndex];
+end
 
 # Detrending lightcurve with Wotan.
 # Dependency: PyCall, wotan(python package).
