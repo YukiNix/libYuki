@@ -3,6 +3,8 @@ using ForwardDiff, QuadGK, LinearAlgebra;
 
 include("libYukiBasic.jl")
 include("libYukiMathVector.jl")
+include("libYukiMathStatistics.jl")
+include("libYukiMathInterpolation.jl")
 
 """
     libYukiMathAngleBetweenVectors(

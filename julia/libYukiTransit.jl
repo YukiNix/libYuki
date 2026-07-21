@@ -198,7 +198,6 @@ function libYukiTransitBinLightCurve(times::AbstractVector{<:Real}, fluxes::Abst
     return binnedTimes[nNaNIndices], binnedFluxes[nNaNIndices]
 end
 
-
 """
 	libYukiTransitFoldLightCurve(
 		time,
