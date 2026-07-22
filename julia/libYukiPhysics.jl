@@ -58,11 +58,10 @@ libYukiPhysicsKineticEnergy(
 	mass::Real, 
 	velocity::SVector{3, <:Real}
 ) = 
-	0.5 * mass * 
-		libYukiMathVectorDotProduct(
-			velocity, 
-			velocity
-		);
+	0.5 * mass * libYukiMathVectorDotProduct(
+		velocity, 
+		velocity
+	);
 
 """
 	libYukiPhysicsMomentum(
@@ -118,9 +117,6 @@ libYukiPhysicsMomentum(
 	mass::Real, 
 	velocity::SVector{3, <:Real}
 ) = mass .* velocity;
-
-
-
 
 
 

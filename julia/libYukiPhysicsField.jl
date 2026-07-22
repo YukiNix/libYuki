@@ -1,6 +1,8 @@
 abstract type libYukiPhysicsFieldAbstractField end
-abstract type libYukiPhusicsFieldAbstractPotentialField <: libYukiPhysicsFieldAbstractField end 
-abstract type libYukiPhusicsFieldAbstractVectorField <: libYukiPhysicsFieldAbstractField end 
+abstract type libYukiPhusicsFieldAbstractPotentialField <: 
+    libYukiPhysicsFieldAbstractField end 
+abstract type libYukiPhusicsFieldAbstractVectorField <: 
+    libYukiPhysicsFieldAbstractField end 
 
 """
     libYukiPhysicsFieldPotentialField(
@@ -25,10 +27,14 @@ the potential at that position.
     # Output: 14
 ```
 """
-struct libYukiPhysicsFieldPotentialField{F}<:libYukiPhusicsFieldAbstractPotentialField
+struct libYukiPhysicsFieldPotentialField{
+    F
+}<:libYukiPhusicsFieldAbstractPotentialField
     potentialFunction::F
 end
-(fieldObject::libYukiPhysicsFieldPotentialField{F})(position) where F =
+(fieldObject::libYukiPhysicsFieldPotentialField{F})(
+    position
+) where F =
     fieldObject.potentialFunction(position);
 
 """
@@ -58,10 +64,14 @@ the vector of strengths at that position.
     ]
 ```
 """
-struct libYukiPhysicsFieldVectorField{F}<:libYukiPhusicsFieldAbstractVectorField
+struct libYukiPhysicsFieldVectorField{
+    F
+}<:libYukiPhusicsFieldAbstractVectorField
     vectorFunction::F
 end
-(fieldObject::libYukiPhysicsFieldVectorField{F})(position) where F =
+(fieldObject::libYukiPhysicsFieldVectorField{F})(
+    position
+) where F =
     fieldObject.vectorFunction(position);
 
 """
@@ -71,7 +81,8 @@ end
     )
 Calculate the strength of the field at a given position.
 # Arguments
-- `potentialField`: An callable instance (object) of `libYukiPhysicsFieldPotentialField`.
+- `potentialField`: An callable instance (object) of 
+`libYukiPhysicsFieldPotentialField`.
 - `x`: The position at which to calculate the field strength.
 # Returns
 - The strength of the field at the given position.
@@ -92,7 +103,10 @@ Calculate the strength of the field at a given position.
     ]
 ``` 
 """
-function libYukiPhysicsFieldStrength(potentialField::libYukiPhysicsFieldPotentialField, x)
+function libYukiPhysicsFieldStrength(
+    potentialField::libYukiPhysicsFieldPotentialField, 
+    x
+)
     return -libYukiMathDerivative(potentialField, x);
 end
 

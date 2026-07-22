@@ -183,23 +183,16 @@ function _libYukiMathIntegrationEvaluateLimit(
 			variables...
 	);
 end
-_libYukiMathIntegrationEvaluateBound(bound, variables...) =
-    bound isa Function ? bound(variables...) : bound;
+_libYukiMathIntegrationEvaluateBound(
+	bound, 
+	variables...
+) = bound isa Function ? bound(variables...) : bound;
 
 """
 	libYukiMathDerivative(
 		f, 
 		x
 	)
-	libYukiMathJacobian(
-		f, 
-		x
-	)
-	libYukiMathGradient(
-		f, 
-		x
-	)
-	
 Calculate the first-order derivative of a function `f` with respect to 
 variable `x`.
 # Arguments
@@ -221,16 +214,60 @@ derivatives of functions.
 	# Output: 4.0 ± 0.2
 ```
 """
-libYukiMathDerivative(f, x::Real) =
-    ForwardDiff.derivative(f, x);
-libYukiMathJacobian(f, x::AbstractVector{<:Real}) =
-    ForwardDiff.jacobian(f, x);
-libYukiMathGradient(f, x::AbstractVector{<:Real}) =
-    ForwardDiff.gradient(f, x);
+libYukiMathDerivative(
+	f, 
+	x::Real
+) = ForwardDiff.derivative(f, x);
+
+"""
+	libYukiMathJacobian(
+		f, 
+		x
+	)
+Calculate the Jacobian matrix of a vector-valued function `f` with 
+respect to a vector of variables `x`.
+# Arguments
+- `f`: The vector-valued function for which to calculate the Jacobian.
+- `x`: The point at which to evaluate the Jacobian, given as a 
+vector of variables.
+# Returns
+- The Jacobian matrix of `f` with respect to `x` evaluated at the 
+point `x`.
+"""
+libYukiMathJacobian(
+	f, 
+	x::AbstractVector{<:Real}
+) = ForwardDiff.jacobian(f, x);
+
+"""
+	libYukiMathGradient(
+		f, 
+		x
+	)
+Calculate the gradient of a scalar-valued function `f` with respect to 
+a vector of variables `x`.
+# Arguments
+- `f`: The scalar-valued function for which to calculate the gradient.
+- `x`: The point at which to evaluate the gradient, given as a 
+vector of variables.
+# Returns
+- The gradient vector of `f` with respect to `x` evaluated at the 
+point `x`.
+"""
+libYukiMathGradient(
+	f, 
+	x::AbstractVector{<:Real}
+) = ForwardDiff.gradient(f, x);
 function libYukiMathDerivative(f, x::AbstractVector{<:Real})
 	y = f(x);
-    return (y isa Real) ? libYukiMathGradient(f, x) : (
-		(y isa AbstractVector) ? libYukiMathJacobian(f, x) : throw(ArgumentError("f(x) must return a Real scalar or an AbstractVector"))
+    return (y isa Real) ? 
+		libYukiMathGradient(f, x) : 
+			( (y isa AbstractVector) ? 
+				libYukiMathJacobian(f, x) : 
+					throw(
+						ArgumentError(
+							"f(x) must return a Real scalar" * 
+							" or an AbstractVector"));
 	);
 end
 
@@ -239,8 +276,8 @@ end
 		f,
 		x
 	)
-Calculate the second-order derivative (Hessian) of a function `f` with respect to 
-the vector of variables `x`.
+Calculate the second-order derivative (Hessian) of a function `f` 
+with respect to the vector of variables `x`.
 # Arguments
 - `f`: The function for which to calculate the Hessian.
 - `x`: The point at which to evaluate the Hessian.
@@ -260,5 +297,7 @@ second-order derivatives of multivariate functions.
 	# Output: [2.0 0.0; 0.0 2.0]
 ```
 """
-libYukiMathHessian(f, x::AbstractVector{<:Real}) =
-    ForwardDiff.hessian(f, x);
+libYukiMathHessian(
+	f, 
+	x::AbstractVector{<:Real}
+) = ForwardDiff.hessian(f, x);

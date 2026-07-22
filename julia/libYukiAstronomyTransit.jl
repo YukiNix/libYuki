@@ -14,7 +14,8 @@ include("libYukiPhysics.jl")
 		flux, 
 		fluxErr
 	)
-Define a light curve for transit analysis with time, flux, and flux error.
+Define a light curve for transit analysis with time, flux, and 
+flux error.
 # Arguments
 - `time`: A vector of time values.
 - `flux`: A vector of flux values corresponding to the time values.
@@ -26,19 +27,54 @@ mutable struct libYukiAstronomyTransitLightCurve
 	time::AbstractVector
 	flux::AbstractVector
 	fluxErr::AbstractVector
-	libYukiAstronomyTransitLightCurve(time, flux, fluxErr) = new(time, flux, fluxErr);
+	libYukiAstronomyTransitLightCurve(
+		time, 
+		flux, 
+		fluxErr) = new(
+			time, 
+			flux, 
+			fluxErr
+		);
 end
 
 include("libYukiAstronomyTransitLimbDarkening.jl")
 
-function libYukiAstronomyTransitSplitLightCurveByPeriod(lightCurve::libYukiAstronomyTransitLightCurve, transitCentreTime::Real, planetOrbitPeriod::Real)
-	nPeriods = ceil(Int, (maximum(lightCurve.time) - minimum(lightCurve.time)) / planetOrbitPeriod);
-	splitLightCurves = Vector{libYukiAstronomyTransitLightCurve}(undef, nPeriods);
+"""
+	libYukiAstronomyTransitSplitLightCurveByPeriod(
+		lightCurve, 
+		transitCentreTime, 
+		planetOrbitPeriod
+	)
+Split a light curve into segments based on the planet's orbital 
+period and the transit centre time. Each segment corresponds to 
+one orbital period of the planet.
+# Arguments
+- `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve`.
+- `transitCentreTime`: The time of the transit centre.
+- `planetOrbitPeriod`: The orbital period of the planet.
+# Returns
+- A vector of `libYukiAstronomyTransitLightCurve` instances, 
+each representing a segment of the original light curve 
+corresponding to one orbital period.
+"""
+function libYukiAstronomyTransitSplitLightCurveByPeriod(
+	lightCurve::libYukiAstronomyTransitLightCurve, 
+	transitCentreTime::Real, 
+	planetOrbitPeriod::Real
+)
+	nPeriods = ceil(Int, (maximum(lightCurve.time) - 
+		minimum(lightCurve.time)) / planetOrbitPeriod);
+	splitLightCurves = Vector{libYukiAstronomyTransitLightCurve}(
+		undef, 
+		nPeriods
+		);
 	firstPeriodTime = transitCentreTime - planetOrbitPeriod / 2;
 	for index in 1 : nPeriods
-		startTime = firstPeriodTime + (index - 1) * planetOrbitPeriod;
+		startTime = firstPeriodTime + 
+			(index - 1) * planetOrbitPeriod;
 		endTime = startTime + planetOrbitPeriod;
-		mask = (lightCurve.time .>= startTime) .& (lightCurve.time .< endTime);
+		mask = (lightCurve.time .>= startTime) .& 
+			(lightCurve.time .< endTime);
 		if any(mask)
 			splitLightCurves[index] = libYukiAstronomyTransitLightCurve(
 				lightCurve.time[mask],
@@ -64,9 +100,12 @@ Load a light curve from a FITS file.
 # Arguments
 - `fileName`: The path to the FITS file containing the light curve data.
 # Returns
-- An instance of `libYukiAstronomyTransitLightCurve` containing the time, flux, and flux error data.
+- An instance of `libYukiAstronomyTransitLightCurve` containing the 
+time, flux, and flux error data.
 """
-function libYukiAstronomyTransitLoadLightCurveFromFITS(fileName::String)
+function libYukiAstronomyTransitLoadLightCurveFromFITS(
+	fileName::String
+)
 	time, flux, fluxErr = FITS(fileName, "r") do file
 		table = file[2];
 		return (
@@ -90,11 +129,19 @@ end
 Save a light curve to a FITS file.
 # Arguments
 - `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve`.
-- `filePath`: The path to the FITS file where the light curve will be saved.
+- `filePath`: The path to the FITS file where the light curve will 
+be saved.
 """
-function libYukiAstronomyTransitSaveLightCurveToFITS(lightCurve::libYukiAstronomyTransitLightCurve, filePath::String)
-	length(lightCurve.time) == length(lightCurve.flux) == length(lightCurve.fluxErr) ||
-        throw(DimensionMismatch("The three vectors must have equal lengths."))
+function libYukiAstronomyTransitSaveLightCurveToFITS(
+	lightCurve::libYukiAstronomyTransitLightCurve, 
+	filePath::String
+)
+	length(lightCurve.time) == 
+		length(lightCurve.flux) == 
+		length(lightCurve.fluxErr) ||
+        	throw(
+				DimensionMismatch(
+					"The three vectors must have equal lengths."))
     FITS(filePath, "w") do file
         write(file, Dict(
             "TIME"     => Float64.(lightCurve.time),
@@ -111,23 +158,34 @@ end
 	libYukiAstronomyTransitNormalizeLightCurve!(
 		lightCurve
 	)
-Normalize the flux of a light curve by dividing it by its median value. The flux error is also adjusted accordingly. 
+Normalize the flux of a light curve by dividing it by its median 
+value. The flux error is also adjusted accordingly. 
 # Arguments
 - `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve`.
 # Returns
-- A new instance of `libYukiAstronomyTransitLightCurve` with normalized flux and flux error.
+- A new instance of `libYukiAstronomyTransitLightCurve` with 
+normalized flux and flux error.
 # Notes
-- The function `libYukiAstronomyTransitNormalizeLightCurve!` modifies the input light curve in place, while `libYukiAstronomyTransitNormalizeLightCurve` returns a new normalized light curve.
+- The function `libYukiAstronomyTransitNormalizeLightCurve!` 
+modifies the input light curve in place, while 
+`libYukiAstronomyTransitNormalizeLightCurve` returns a new 
+normalized light curve.
 """
-function libYukiAstronomyTransitNormalizeLightCurve(lightCurve::libYukiAstronomyTransitLightCurve)
+function libYukiAstronomyTransitNormalizeLightCurve(
+	lightCurve::libYukiAstronomyTransitLightCurve
+)
 	lightCurveNormalized = deepcopy(lightCurve);
 	libYukiAstronomyTransitNormalizeLightCurve!(lightCurveNormalized);
 	return lightCurveNormalized;
 end
-function libYukiAstronomyTransitNormalizeLightCurve!(lightCurve::libYukiAstronomyTransitLightCurve)
+function libYukiAstronomyTransitNormalizeLightCurve!(
+	lightCurve::libYukiAstronomyTransitLightCurve
+)
 	medianFlux = median(lightCurve.flux);
 	if !isfinite(medianFlux) || medianFlux == 0.0
-		error("Normalization failed: median flux is not finite or zero.")
+		error(
+			"Normalization failed: median flux is not finite or zero."
+		);
 	end
 	lightCurve.flux ./= medianFlux;
 	lightCurve.fluxErr ./= abs(medianFlux);
@@ -140,29 +198,51 @@ end
 	libYukiAstronomyTransitGetValidLightCurve!(
 		lightCurve
 	)
-Filter out invalid data points from a light curve, ensuring that only finite and positive flux error values are retained. The filtered light curve is sorted by time.
+Filter out invalid data points from a light curve, ensuring that 
+only finite and positive flux error values are retained. The 
+filtered light curve is sorted by time.
 # Arguments
 - `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve`.
 # Returns
-- A new instance of `libYukiAstronomyTransitLightCurve` containing only valid data points.
+- A new instance of `libYukiAstronomyTransitLightCurve` containing 
+only valid data points.
 - Notes
-- The function `libYukiAstronomyTransitGetValidLightCurve!` modifies the input light curve in place, while `libYukiAstronomyTransitGetValidLightCurve` returns a new filtered light curve.
+- The function `libYukiAstronomyTransitGetValidLightCurve!` 
+modifies the input light curve in place, while 
+`libYukiAstronomyTransitGetValidLightCurve` returns a new 
+filtered light curve.
 """
-function libYukiAstronomyTransitGetValidLightCurve!(lightCurve::libYukiAstronomyTransitLightCurve)
-	validMask = isfinite.(lightCurve.time) .& isfinite.(lightCurve.flux) .& isfinite.(lightCurve.fluxErr) .& (lightCurve.fluxErr .> 0);
+function libYukiAstronomyTransitGetValidLightCurve(
+	lightCurve::libYukiAstronomyTransitLightCurve
+)
+	lightCurveValid = deepcopy(lightCurve);
+	libYukiAstronomyTransitGetValidLightCurve!(lightCurveValid);
+	return lightCurveValid;
+end
+function libYukiAstronomyTransitGetValidLightCurve!(
+	lightCurve::libYukiAstronomyTransitLightCurve
+)
+	validMask = isfinite.(lightCurve.time) .& 
+		isfinite.(lightCurve.flux) .& 
+		isfinite.(lightCurve.fluxErr) .& 
+		(lightCurve.fluxErr .> 0);
 	lightCurve.time = lightCurve.time[validMask];
 	lightCurve.flux = lightCurve.flux[validMask];
 	lightCurve.fluxErr = lightCurve.fluxErr[validMask];
 
 	sortIdx = sortperm(lightCurve.time);
-	lightCurve.time = map(x -> Float64(x), lightCurve.time[sortIdx]);
-	lightCurve.flux = map(x -> Float64(x), lightCurve.flux[sortIdx]);
-	lightCurve.fluxErr = map(x -> Float64(x), lightCurve.fluxErr[sortIdx]);
-end
-function libYukiAstronomyTransitGetValidLightCurve(lightCurve::libYukiAstronomyTransitLightCurve)
-	lightCurveValid = deepcopy(lightCurve);
-	libYukiAstronomyTransitGetValidLightCurve!(lightCurveValid);
-	return lightCurveValid;
+	lightCurve.time = map(
+		x -> Float64(x), 
+		lightCurve.time[sortIdx]
+	);
+	lightCurve.flux = map(
+		x -> Float64(x), 
+		lightCurve.flux[sortIdx]
+	);
+	lightCurve.fluxErr = map(
+		x -> Float64(x), 
+		lightCurve.fluxErr[sortIdx]
+	);
 end
 
 """
@@ -170,23 +250,36 @@ end
 		lightCurve, 
 		binBoxNumber
 	)
-Bin a light curve into a specified number of bins, averaging the flux and flux error within each bin. The binned light curve is returned with time values corresponding to the centre of each bin.
+Bin a light curve into a specified number of bins, averaging the 
+flux and flux error within each bin. The binned light curve is 
+returned with time values corresponding to the centre of each bin.
 # Arguments
 - `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve`.
 - `binBoxNumber`: The number of bins to divide the light curve into.
 # Returns
-- A new instance of `libYukiAstronomyTransitLightCurve` containing the binned time, flux, and flux error values.
+- A new instance of `libYukiAstronomyTransitLightCurve` 
+containing the binned time, flux, and flux error values.
 """
-function libYukiAstronomyTransitBinLightCurve(lightCurve::libYukiAstronomyTransitLightCurve, binBoxNumber::Integer) 
-	binEdge = range(minimum(lightCurve.time), maximum(lightCurve.time); length = binBoxNumber + 1)
-    binnedTime = @. 0.5 * (binEdge[1 : end - 1] + binEdge[2 : end])
-    binnedFlux = zeros(length(binnedTime))
-	binnedFluxErr = zeros(length(binnedTime))
+function libYukiAstronomyTransitBinLightCurve(
+	lightCurve::libYukiAstronomyTransitLightCurve, 
+	binBoxNumber::Integer
+) 
+	binEdge = range(
+		minimum(lightCurve.time), 
+		maximum(lightCurve.time); 
+		length = binBoxNumber + 1
+	);
+    binnedTime = @. 0.5 * (binEdge[1 : end - 1] + binEdge[2 : end]);
+    binnedFlux = zeros(length(binnedTime));
+	binnedFluxErr = zeros(length(binnedTime));
    for index in eachindex(binnedTime)
-        mask = (lightCurve.time .>= binEdge[index]) .& (lightCurve.time .< binEdge[index + 1]);
+        mask = (lightCurve.time .>= binEdge[index]) .& 
+			(lightCurve.time .< binEdge[index + 1]);
         if any(mask)
             binnedFlux[index] = mean(lightCurve.flux[mask]);
-			binnedFluxErr[index] = sqrt(sum(lightCurve.fluxErr[mask] .^ 2)) / sum(mask);
+			binnedFluxErr[index] = sqrt(
+				sum(lightCurve.fluxErr[mask] .^ 2)
+				) / sum(mask);
         else
             binnedFlux[index] = NaN;
 			binnedFluxErr[index] = NaN;
@@ -194,7 +287,11 @@ function libYukiAstronomyTransitBinLightCurve(lightCurve::libYukiAstronomyTransi
     end
     nNaNIndices = findall(x -> !isnan(x), binnedFlux);
 
-    return libYukiAstronomyTransitLightCurve(binnedTime[nNaNIndices], binnedFlux[nNaNIndices], binnedFluxErr[nNaNIndices]);
+    return libYukiAstronomyTransitLightCurve(
+		binnedTime[nNaNIndices], 
+		binnedFlux[nNaNIndices], 
+		binnedFluxErr[nNaNIndices]
+	);
 end
 
 """
@@ -208,15 +305,22 @@ end
 		planetOrbitPeriod, 
 		transitCentreTime
 	)
-Fold a light curve based on the planet's orbital period and the transit centre time. The time values are adjusted to be within the range of -P/2 to P/2, where P is the planet's orbital period. The light curve is then sorted by the adjusted time values.
+Fold a light curve based on the planet's orbital period and the 
+transit centre time. The time values are adjusted to be within the 
+range of -P/2 to P/2, where P is the planet's orbital period. 
+The light curve is then sorted by the adjusted time values.
 # Arguments
 - `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve`.
 - `planetOrbitPeriod`: The orbital period of the planet.
 - `transitCentreTime`: The time of the transit centre.
 # Returns
-- A new instance of `libYukiAstronomyTransitLightCurve` with folded time values.
+- A new instance of `libYukiAstronomyTransitLightCurve` with 
+folded time values.
 - Notes
-- The function `libYukiAstronomyTransitFoldLightCurve!` modifies the input light curve in place, while `libYukiAstronomyTransitFoldLightCurve` returns a new folded light curve.
+- The function `libYukiAstronomyTransitFoldLightCurve!` modifies 
+the input light curve in place, while 
+`libYukiAstronomyTransitFoldLightCurve` returns a new folded 
+light curve.
 """
 function libYukiAstronomyTransitFoldLightCurve(
 	lightCurve::libYukiAstronomyTransitLightCurve,
@@ -224,7 +328,11 @@ function libYukiAstronomyTransitFoldLightCurve(
 	transitCentreTime::Real
 )
 	lightCurveFolded = deepcopy(lightCurve);
-	libYukiAstronomyTransitFoldLightCurve!(lightCurveFolded, planetOrbitPeriod, transitCentreTime);
+	libYukiAstronomyTransitFoldLightCurve!(
+		lightCurveFolded, 
+		planetOrbitPeriod, 
+		transitCentreTime
+	);
 	return lightCurveFolded;
 end
 function libYukiAstronomyTransitFoldLightCurve!(
@@ -232,8 +340,12 @@ function libYukiAstronomyTransitFoldLightCurve!(
 	planetOrbitPeriod::Real, 
 	transitCentreTime::Real
 )
-	lightCurve.time = ((lightCurve.time .- transitCentreTime) .% planetOrbitPeriod);
-	lightCurve.time[lightCurve.time .> planetOrbitPeriod / 2] .-= planetOrbitPeriod;
+	lightCurve.time = (
+		(lightCurve.time .- transitCentreTime) .% 
+		planetOrbitPeriod
+	);
+	lightCurve.time[lightCurve.time .> planetOrbitPeriod / 2] .-= 
+		planetOrbitPeriod;
 
 	sortedIndex = sortperm(lightCurve.time);
 	lightCurve.time = lightCurve.time[sortedIndex];
@@ -275,13 +387,15 @@ end
 		planetOrbitSemiMajorAxis, 
 		planetOrbitInclination
 	)
-Evaluate the transit duration based on the planet's orbital parameters and stellar properties.
+Evaluate the transit duration based on the planet's orbital 
+parameters and stellar properties.
 # Arguments
 - `planetOrbitPeriod`: The orbital period of the planet.
 - `stellarRadius`: The radius of the host star.
 - `planetRadius`: The radius of the planet.
 - `planetOrbitSemiMajorAxis`: The semi-major axis of the planet's orbit.
-- `planetOrbitInclination`: The inclination of the planet's orbit in degrees.
+- `planetOrbitInclination`: The inclination of the planet's orbit 
+in degrees.
 # Returns
 - The transit duration.
 """
@@ -295,11 +409,14 @@ function libYukiAstronomyTransitTransitDurationEvaluate(
     radiusRatio = planetRadius / stellarRadius;
     scaledSemiMajorAxis = planetOrbitSemiMajorAxis / stellarRadius;
     inclinationSin = sind(planetOrbitInclination);
-    impactParameter = scaledSemiMajorAxis * cosd(planetOrbitInclination);
+    impactParameter = scaledSemiMajorAxis * cosd(
+		planetOrbitInclination);
     contactRadius = 1 + radiusRatio;
-    impactParameter < contactRadius || return zero(float(planetOrbitPeriod))
+    impactParameter < contactRadius || 
+		return zero(float(planetOrbitPeriod))
 
-    argument = sqrt(contactRadius ^ 2 - impactParameter ^ 2) / (scaledSemiMajorAxis * inclinationSin);
+    argument = sqrt(contactRadius ^ 2 - impactParameter ^ 2) / 
+		(scaledSemiMajorAxis * inclinationSin);
 
     return (planetOrbitPeriod / π * asin(clamp(argument, -1, 1)));
 end

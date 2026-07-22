@@ -28,8 +28,7 @@ vector by its quantity (magnitude).
 libYukiMathVectorUnit(
 	vectorA::AbstractVector{<:Real}
 )::AbstractVector{<:Real} = 
-	vectorA ./ 
-		(vectorA |> libYukiMathVectorQuantity);
+	vectorA ./ (vectorA |> libYukiMathVectorQuantity);
 
 """
 	libYukiMathVectorShiftAngularCoordinates(
@@ -169,7 +168,8 @@ function libYukiMathVectorShiftAngularCoordinates!(
 	vectorOut::AbstractVector, 
 	::Val{2}, 
 	vectorA::AbstractVector, 
-	rotateAngle)
+	rotateAngle
+)
     vectorMod, vectorAngle = 
 		libYukiMathVectorModAndAngle(vectorA);
     return libYukiMathVectorFromPolar!(
@@ -263,7 +263,7 @@ function libYukiMathVectorModAndAngle(
 )
     x, y = vectorA
     return LinearAlgebra.hypot(x, y), 
-		atan(y, x)
+		atan(y, x);
 end
 function libYukiMathVectorModAndAngle(
 	::Val{3}, 
@@ -438,7 +438,10 @@ Calculate the gradient of a scalar function `f` with respect to a vector variabl
 # Output: SVector{3}([2.0, 4.0, 6.0])
 ```
 """
-libYukiMathVectorGradient(f, vector) = 
+libYukiMathVectorGradient(
+	f, 
+	vector
+) = 
 	ForwardDiff.gradient(f, vector);
 
 
@@ -481,7 +484,6 @@ libYukiMathVectorDotProduct(
 ) = 
 	LinearAlgebra.dot(vectorA, vectorB);
 
-
 """
 	libYukiMathVectorCrossProduct(
 		vectorA, 
@@ -521,7 +523,8 @@ Return the cross product of two vectors.
 libYukiMathVectorCrossProduct(
 	vectorA, 
 	vectorB
-) = LinearAlgebra.cross(vectorA, vectorB);
+) = 
+	LinearAlgebra.cross(vectorA, vectorB);
 
 """
 	libYukiMathVectorQuantity(vectorA)
@@ -547,7 +550,6 @@ libYukiMathVectorQuantity(
 	vectorA
 ) = 
 	LinearAlgebra.norm(vectorA);
-
 
 """
 	libYukiMathVectorFieldDivergence(
@@ -575,7 +577,10 @@ the divergence of multivariate vector fields.
 	# Output: 3.0
 ``` 
 """
-libYukiMathVectorFieldDivergence(f, x::AbstractVector{<:Real}) =
+libYukiMathVectorFieldDivergence(
+	f, 
+	x::AbstractVector{<:Real}
+) =
     LinearAlgebra.tr(libYukiMathJacobian(f, x));
 
 """
@@ -619,11 +624,13 @@ function libYukiMathVectorFieldCurl(
     x::AbstractVector{<:Real},
 )
     length(x) == 3 ||
-        throw(ArgumentError("curl is defined here only for 3-dimensional vector fields"))
-    jacobian = libYukiMathJacobian(f, x)
+        throw(ArgumentError(
+			"curl is defined here only for 3-dimensional" * 
+			" vector fields"))
+    jacobian = libYukiMathJacobian(f, x);
     return SVector(
         jacobian[3, 2] - jacobian[2, 3],
         jacobian[1, 3] - jacobian[3, 1],
         jacobian[2, 1] - jacobian[1, 2],
-    )
+    );
 end
