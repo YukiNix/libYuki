@@ -262,271 +262,183 @@ function libYukiAstronomyTransitTTVOCBrent(
 	searchCentreFitPointCount::Integer = 5,
 	searchWidthMaximumMultiplier::Real = 8.0,
 )
-	nTransits = length(lightCurvesSplited)
+	nTransits = length(lightCurvesSplited);
 
-	oc = fill(NaN, nTransits)
-	ocErr = fill(NaN, nTransits)
-	isAcceptable = fill(false, nTransits)
+	oc = fill(NaN, nTransits);
+	ocErr = fill(NaN, nTransits);
+	isAcceptable = fill(false, nTransits);
+	epochs = collect(0 : nTransits - 1);
 
-	epochs = collect(0:nTransits-1)
+	predictedMidPoints = planetTransitCentreTime .+ 
+		epochs .* planetOrbitPeriod;
 
-	predictedMidPoints =
-		planetTransitCentreTime .+
-		epochs .* planetOrbitPeriod
-
-	searchWidth =
-		ocSearchLengthDurations *
-		planetTransitDuration
+	searchWidth = ocSearchLengthDurations * planetTransitDuration;
 
 	for (index, t0) in enumerate(predictedMidPoints)
-		lightCurve = lightCurvesSplited[index]
+		lightCurve = lightCurvesSplited[index];
 
-		# 根据此前可靠的 O-C 预测本周期搜索中心。
-		acceptedIndices =
-			index > 1 ?
-			findall(isAcceptable[1:index-1]) :
-			Int[]
-
-		searchCentre = 0.0
-
+		searchCentre = 0.0;
+		acceptedIndices = index > 1 ?
+			findall(isAcceptable[1 : index - 1]) :
+			Int[];
+		
 		if length(acceptedIndices) == 1
-			searchCentre =
-				oc[only(acceptedIndices)]
+			searchCentre = oc[only(acceptedIndices)];
 
 		elseif length(acceptedIndices) >= 2
-			firstFitIndex =
-				max(
-					1,
-					length(acceptedIndices) -
+			firstFitIndex = max(
+				1,
+				length(acceptedIndices) - 
 					searchCentreFitPointCount + 1,
-				)
+			);
+			fitIndices = acceptedIndices[firstFitIndex : end];
+			fitEpoch = Float64.(epochs[fitIndices]);
+			fitOC = oc[fitIndices];
 
-			fitIndices =
-				acceptedIndices[firstFitIndex:end]
+			designMatrix = hcat(
+				ones(length(fitEpoch)),
+				fitEpoch,
+			);
+			driftParameters = designMatrix \ fitOC;
 
-			fitEpoch =
-				Float64.(epochs[fitIndices])
-
-			fitOC =
-				oc[fitIndices]
-
-			designMatrix =
-				hcat(
-					ones(length(fitEpoch)),
-					fitEpoch,
-				)
-
-			driftParameters =
-				designMatrix \ fitOC
-
-			searchCentre =
-				driftParameters[1] +
-				driftParameters[2] *
-				epochs[index]
+			searchCentre = driftParameters[1] +
+				driftParameters[2] * epochs[index];
 		end
 
-		# 测量窗口也必须跟随动态搜索中心移动。
-		measurementCentre =
-			t0 + searchCentre
-
-		mask =
-			abs.(lightCurve.time .- measurementCentre) .<
-			ocMeasurementLengthDurations *
-			planetTransitDuration
-
+		measurementCentre = t0 + searchCentre;
+		mask = abs.(lightCurve.time .- measurementCentre) .<
+			ocMeasurementLengthDurations * planetTransitDuration;
 		count(mask) >= minimumPointCount ||
 			continue
 
-		# 仍然相对于原始线性历表的 t0，
-		# 因此 dtBest 是完整 O-C。
-		t =
-			lightCurve.time[mask] .- t0
-
-		f =
-			lightCurve.flux[mask]
-
+		t = lightCurve.time[mask] .- t0;
+		f = lightCurve.flux[mask];
 		all(isfinite, t) || continue
 		all(isfinite, f) || continue
 
-		fluxErrProvided =
-			lightCurve.fluxErr !== nothing &&
-			!isempty(lightCurve.fluxErr)
-
+		fluxErrProvided = lightCurve.fluxErr !== nothing &&
+			!isempty(lightCurve.fluxErr);
 		if fluxErrProvided
 			length(lightCurve.fluxErr) ==
 				length(lightCurve.time) ||
 				continue
-
-			fErr =
-				lightCurve.fluxErr[mask]
-
+			fErr = lightCurve.fluxErr[mask];
 			all(isfinite, fErr) || continue
 			all(fErr .> 0) || continue
-
-			sqrtWeight =
-				1.0 ./ fErr
+			sqrtWeight = 1.0 ./ fErr;
 		else
-			sqrtWeight =
-				ones(length(t))
+			sqrtWeight = ones(length(t));
 		end
 
 		function loss(dt)
-			templateFlux =
+			templateFlux = 
 				libYukiAstronomyTransitLimbDarkeningTransitFlux(
 					t .- dt,
 					planetStellarRadiusRatio,
 					orbit,
 					limbDarkeningFunc,
-				)
-
+				);
 			all(isfinite, templateFlux) ||
 				return Inf
+			
+			designMatrix = hcat(
+				ones(length(t)),
+				templateFlux .- 1.0,
+			);
+			weightedDesignMatrix = designMatrix .*
+				reshape(sqrtWeight, :, 1);
+			parameters = weightedDesignMatrix \ (f .* sqrtWeight);
+			residual = (f .- designMatrix * parameters) .*
+				sqrtWeight;
 
-			designMatrix =
-				hcat(
-					ones(length(t)),
-					templateFlux .- 1.0,
-				)
-
-			weightedDesignMatrix =
-				designMatrix .*
-				reshape(sqrtWeight, :, 1)
-
-			parameters =
-				weightedDesignMatrix \
-				(f .* sqrtWeight)
-
-			residual =
-				(f .- designMatrix * parameters) .*
-				sqrtWeight
-
-			return sum(abs2, residual)
+			return sum(abs2, residual);
 		end
 
-		# 边界命中或剖面不完整时按 2 倍逐级扩大搜索宽度重试，
-		# 以跟随随历元增大的 O-C，并在链条断裂后重新锁定。
-		widthMultiplier = 1.0
-
+		widthMultiplier = 1.0;
 		while widthMultiplier <= searchWidthMaximumMultiplier
 			currentSearchWidth =
-				widthMultiplier * searchWidth
+				widthMultiplier * searchWidth;
+			searchLower = searchCentre - currentSearchWidth;
+			searchUpper = searchCentre + currentSearchWidth;
 
-			searchLower =
-				searchCentre - currentSearchWidth
-
-			searchUpper =
-				searchCentre + currentSearchWidth
-
-			result =
-				optimize(
-					loss,
-					searchLower,
-					searchUpper,
-					Brent(),
-				)
-
+			result = optimize(
+				loss,
+				searchLower,
+				searchUpper,
+				Brent(),
+			);
 			if !Optim.converged(result)
-				widthMultiplier *= 2.0
-				continue
+				widthMultiplier *= 2.0;
+				continue;
 			end
 
-			dtBest =
-				Optim.minimizer(result)
-
-			lossBest =
-				Optim.minimum(result)
-
+			dtBest = Optim.minimizer(result);
+			lossBest = Optim.minimum(result);
 			if !(isfinite(dtBest) && isfinite(lossBest))
-				widthMultiplier *= 2.0
-				continue
+				widthMultiplier *= 2.0;
+				continue;
 			end
-
-			# 边界检查相对于动态搜索中心；命中则扩宽重试。
 			if !(abs(dtBest - searchCentre) <
 				0.9 * currentSearchWidth)
-				widthMultiplier *= 2.0
-				continue
+				widthMultiplier *= 2.0;
+				continue;
 			end
 
-			shiftedTime =
-				t .- dtBest
-
+			shiftedTime = t .- dtBest;
 			count(shiftedTime .< 0) >=
 				minimumPointsPerSide ||
 				break
-
 			count(shiftedTime .> 0) >=
 				minimumPointsPerSide ||
 				break
 
-			degreesOfFreedom =
-				length(t) - 3
-
+			degreesOfFreedom = length(t) - 3;
 			degreesOfFreedom > 0 ||
 				break
-
-			profileLossIncrease =
-				fluxErrProvided ?
+			profileLossIncrease = fluxErrProvided ?
 				1.0 :
-				lossBest / degreesOfFreedom
-
+				lossBest / degreesOfFreedom;
 			(isfinite(profileLossIncrease) &&
 				profileLossIncrease > 0) ||
 				break
 
-			dtGrid =
-				collect(
-					range(
-						searchLower,
-						searchUpper;
-						length = profilePointCount,
-					),
-				)
-
-			lossGrid =
-				loss.(dtGrid)
-
-			targetLoss =
-				lossBest + profileLossIncrease
-
-			leftIndices =
-				findall(
-					(dtGrid .< dtBest) .&
+			dtGrid = collect(
+				range(
+					searchLower,
+					searchUpper;
+					length = profilePointCount,
+				),
+			);
+			lossGrid = loss.(dtGrid);
+			targetLoss = lossBest + profileLossIncrease;
+			
+			leftIndices = findall(
+				(dtGrid .< dtBest) .&
 					(lossGrid .>= targetLoss),
-				)
-
+			);
 			rightIndices = findall(
 				(dtGrid .> dtBest) .&
 					(lossGrid .>= targetLoss),
 			);
-
 			if isempty(leftIndices) || isempty(rightIndices)
-				widthMultiplier *= 2.0
-				continue
+				widthMultiplier *= 2.0;
+				continue;
 			end
 
-			dtLeft =
-				dtGrid[last(leftIndices)]
-
-			dtRight =
-				dtGrid[first(rightIndices)]
-
-			timingError =
-				(dtRight - dtLeft) / 2
-
+			dtLeft = dtGrid[last(leftIndices)];
+			dtRight = dtGrid[first(rightIndices)];
+			timingError = (dtRight - dtLeft) / 2;
 			(isfinite(timingError) &&
 				timingError > 0) ||
 				break
-
 			timingError <=
-				maximumTimingErrorDurations *
-				planetTransitDuration ||
+				maximumTimingErrorDurations * planetTransitDuration ||
 				break
 
-			oc[index] = dtBest
-			ocErr[index] = timingError
-			isAcceptable[index] = true
-			break
+			oc[index] = dtBest;
+			ocErr[index] = timingError;
+			isAcceptable[index] = true;
+			break;
 		end
 	end
 
@@ -535,5 +447,5 @@ function libYukiAstronomyTransitTTVOCBrent(
 		ocErr,
 		isAcceptable,
 		predictedMidPoints,
-	)
+	);
 end
