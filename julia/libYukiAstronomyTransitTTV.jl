@@ -30,6 +30,36 @@ mutable struct libYukiAstronomyTransitTTV
             oc, ocErr, isAcceptable, predictedMidPoints);
 end
 
+"""
+    libYukiAstronomyTransitTTVFoldLightCurve(
+        ttv, 
+        lightCurve, 
+        planetOrbitPeriod, 
+        planetTransitCentreTime = ttv.predictedMidPoints[1]
+    )
+    libYukiAstronomyTransitTTVFoldLightCurve!(
+        ttv, 
+        lightCurve, 
+        planetOrbitPeriod, 
+        planetTransitCentreTime = ttv.predictedMidPoints[1]
+    )
+Fold the light curve based on the transit timing variations (TTV)
+of a planet. The function can either return a new folded light curve or
+update the provided light curve in place.
+# Arguments
+- `ttv`: A `libYukiAstronomyTransitTTV` instance containing the 
+TTV data.
+- `lightCurve`: A `libYukiAstronomyTransitLightCurve` instance 
+representing the light curve to be folded.
+- `planetOrbitPeriod`: The orbital period of the planet.
+- `planetTransitCentreTime`: The expected center time of the 
+first transit. Default is `ttv.predictedMidPoints[1]`.
+# Returns
+- A new `libYukiAstronomyTransitLightCurve` instance containing 
+the folded light curve
+- Or updates the provided `libYukiAstronomyTransitLightCurve` 
+instance in place.
+"""
 function libYukiAstronomyTransitTTVFoldLightCurve(
     ttv::libYukiAstronomyTransitTTV,
     lightCurve::libYukiAstronomyTransitLightCurve,
