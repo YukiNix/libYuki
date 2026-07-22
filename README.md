@@ -1,40 +1,92 @@
-# Library of Yuki Nix for daily coding 
+# libYuki
 
-简体中文版本在英文版本后 (The Simplified Chinese version comes after the English version).
+libYuki is a personal scientific coding library of Yuki Nix / 禰夕・有希 的个人日用科研代码库. 
 
-In this repository, some useful code can be found from my personal daily work.
-They are classified by programming languages, but it is obviously not assured that all functions are the same between different languages since they are from different work areas.
+## Code Layout / 代码结构
 
-It could take a long time to merge all my code into one library since making them compatible with each other is a very large-scale effort.
+```text
+julia/
+    libYukiBasic.jl
+    libYukiConstant.jl
+    libYukiMath.jl
+        libYukiMathVector.jl
+        libYukiMathStatistics.jl
+        libYukiMathInterpolation.jl
+    libYukiPhysics.jl
+        libYukiPhysicsBody.jl
+        libYukiPhysicsField.jl
+        libYukiPhysicsNBodySimulation.jl
+    libYukiAstronomy.jl
+        libYukiAstronomyTransit.jl
+            libYukiAstronomyTransitLimbDarkening.jl
+            libYukiAstronomyTransitTTV.jl
+        libYukiAstronomyKeplerMission.jl
+```
 
-This library is shared under the BSD 3-Clause license, so you can feel free to use it in your program.
+## Main Capabilities / 主要功能
 
-LibXi is deprecated and will be merged into this library.
+- Basic helpers and measurement utilities / 基础工具与测量值处理
+- Constants (physics, astrophysics, mathematics) / 常数库(物理, 天体物理, 数学)
+- Numerical math (vector, interpolation, statistics, differentiation, integration) / 数值数学(向量, 插值, 统计, 微分, 积分)
+- Physics and simulation helpers (including N-body workflows) / 物理计算与模拟辅助(含 N 体流程)
+- Domain-specific toolchains used in daily work, including transit and Kepler-related utilities / 日常工作中使用的领域化工具链(含凌星与 Kepler 相关工具)
 
-The repository has these parts now:  
-- Basic: Fundamental functions dependent on the Programming language;
-- Constant: Physical, astrophysical, mathematical constants, etc;
-- Math: Normal mathematical functions;
-- Physics: Regular physical-related functions;
-- Transit: Exoplanet transit method-related functions, especially about light curve processing;
-    - KeplerMission: NASA Kepler Mission-related functions.
+## Dependencies / 依赖
 
-# Yuki Nix 的日用代码库
+Current Julia code uses / 当前 Julia 代码使用:
 
-在此仓库中, 很多有用的来自我日常个人工作的代码可以被找到.
-它们依照编程语言分类, 不过因为这些代码来自不同的工作领域, 所以显然无法保证在各编程语言之间有同样的功能.
+- CSV
+- DataFrames
+- Dates
+- DifferentialEquations
+- FITSIO
+- ForwardDiff
+- HTTP
+- Interpolations
+- JLD2
+- LinearAlgebra
+- Measurements
+- MultivariateStats
+- Optim
+- Orbits
+- ProgressMeter
+- PyCall
+- QuadGK
+- Random
+- StableRNGs
+- StaticArrays
+- Statistics
+- Tables
+- Transits
+- Turing
 
-把我的全部代码合并到这份代码库中会花费很长的时间, 因为保持它们相互兼容是一个负担相当大的工程.
+Install example / 安装示例:
 
-这份代码采用 BSD 3-Clause 许可发布, 所以你可以不必顾忌地将它用在你的程序中.
+```julia
+using Pkg
+Pkg.add([
+        "CSV", "DataFrames", "DifferentialEquations", "FITSIO", "ForwardDiff",
+        "HTTP", "Interpolations", "JLD2", "Measurements", "MultivariateStats",
+        "Optim", "Orbits", "ProgressMeter", "PyCall", "QuadGK", "StableRNGs",
+        "StaticArrays", "Tables", "Transits", "Turing"
+])
+```
 
-LibXi 将会被弃用, 并合并到此库中.
+## Loading / 加载方式
 
-目前本仓库包含下面的部分:
-- Basic: 与编程语言相关的基础功能;
-- Constant: 物理, 天体物理, 数学等领域的常数;
-- Math: 一般的数学函数;
-- Physics: 普通物理学相关功能;
-- Transit: 系外行星凌星法相关功能, 特别是光变曲线处理方面;
-    - KeplerMission: 美国国家航空航天局 Kepler 项目相关功能.
+This repository is include-based (not a registered Julia package yet) / 当前以 include 脚本组织(尚未注册为 Julia 包):
+
+```julia
+include("julia/libYukiAstronomy.jl")
+```
+
+## Notes / 说明
+
+- APIs are still evolving while modules are being consolidated / API 仍在持续整合中. 
+- Some files include each other directly; loading through entry files is recommended / 部分文件会互相 include，建议通过入口文件加载. 
+- Example notebooks in repository root are no longer actively updated / 根目录示例 notebook 已停止更新. 
+
+## License / 许可证
+
+BSD 3-Clause. See LICENSE / BSD 3-Clause，详见 LICENSE. 
 
