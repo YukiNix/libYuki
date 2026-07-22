@@ -2,10 +2,10 @@ using MultivariateStats, Statistics;
 
 """
     libYukiMathIsotonicRegression(
-        x, 
-        y;
-        weights = nothing,
-        isDecreasing = false
+        x::AbstractVector{<:Real}, 
+        y::AbstractVector{<:Real};
+        weights::Union{AbstractVector{<:Real}, Nothing} = nothing,
+        isDecreasing::Bool = false
     )
 Perform isotonic regression on the given data points `(x, y)` with 
 optional weights. The function returns the estimated values of `y` 

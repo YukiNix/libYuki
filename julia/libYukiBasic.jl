@@ -2,9 +2,9 @@ using Measurements
 
 """
 	libYukiBasicMeasurementWithMissing(
-		value, 
-		valueErr1, 
-		valueErr2
+		value::Union{Real, Missing},
+		valueErr1::Union{Real, Missing},
+		valueErr2::Union{Real, Missing}
 	)
 Calculate a measurement with missing error values.
 # Arguments

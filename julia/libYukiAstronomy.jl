@@ -1,32 +1,13 @@
 """
-    libYukiAstronomyOrbit(
-        period::Float64, 
-        semiMajorAxis::Float64, 
-        inclination::Float64, 
-        eccentricity::Float64, 
-        argumentOfPeriapsis::Float64, 
-        longitudeOfAscendingNode::Float64, 
-        meanAnomalyAtEpoch::Float64
+    libYukiAstronomyOrbit(;
+        period::Real, 
+        semiMajorAxis::Real, 
+        inclination::Real, 
+        eccentricity::Real, 
+        argumentOfPeriapsis::Real, 
+        longitudeOfAscendingNode::Real, 
+        meanAnomalyAtEpoch::Real
     )
-    libYukiAstronomyOrbit(
-        period::Float64, 
-        semiMajorAxis::Float64, 
-        inclination::Float64, 
-        eccentricity::Float64
-    )
-    libYukiAstronomyOrbit(
-        period::Float64, 
-        semiMajorAxis::Float64, 
-        inclination::Float64
-    )
-    libYukiAstronomyOrbit(
-        period::Float64, 
-        semiMajorAxis::Float64
-    )
-    libYukiAstronomyOrbit(
-        period::Float64
-    )
-    libYukiAstronomyOrbit()
 Create a new `libYukiAstronomyOrbit` instance with the specified 
 parameters.
 # Arguments
@@ -42,63 +23,39 @@ for elliptical).
 - A new instance of `libYukiAstronomyOrbit`.
 """
 mutable struct libYukiAstronomyOrbit
-    period::Float64
-    semiMajorAxis::Float64
-    inclination::Float64
-    eccentricity::Float64
-    argumentOfPeriapsis::Float64
-    longitudeOfAscendingNode::Float64
-    meanAnomalyAtEpoch::Float64
-    libYukiAstronomyOrbit() = new(
-        NaN, NaN, NaN, NaN, NaN, NaN, NaN);
-    libYukiAstronomyOrbit(
-        period::Float64
-    ) = new(period, 
-        NaN, NaN, NaN, NaN, NaN, NaN);
-    libYukiAstronomyOrbit(
-        period::Float64, 
-        semiMajorAxis::Float64
-    ) = new(period, semiMajorAxis, 
-        NaN, NaN, NaN, NaN, NaN);
-    libYukiAstronomyOrbit(
-        period::Float64, 
-        semiMajorAxis::Float64,
-        inclination::Float64
-    ) = new(period, semiMajorAxis, inclination, 
-        NaN, NaN, NaN, NaN);
-    libYukiAstronomyOrbit(
-        period::Float64, 
-        semiMajorAxis::Float64, 
-        inclination::Float64, 
-        eccentricity::Float64
-    ) = new(period, semiMajorAxis, inclination, eccentricity,
-        NaN, NaN, NaN);
-    libYukiAstronomyOrbit(
-        period::Float64, 
-        semiMajorAxis::Float64, 
-        inclination::Float64, 
-        eccentricity::Float64, 
-        argumentOfPeriapsis::Float64, 
-        longitudeOfAscendingNode::Float64, 
-        meanAnomalyAtEpoch::Float64
+    period::Real
+    semiMajorAxis::Real
+    inclination::Real
+    eccentricity::Real
+    argumentOfPeriapsis::Real
+    longitudeOfAscendingNode::Real
+    meanAnomalyAtEpoch::Real
+    libYukiAstronomyOrbit(;
+        period::Real = NaN, 
+        semiMajorAxis::Real = NaN, 
+        inclination::Real = NaN, 
+        eccentricity::Real = NaN, 
+        argumentOfPeriapsis::Real = NaN, 
+        longitudeOfAscendingNode::Real = NaN, 
+        meanAnomalyAtEpoch::Real = NaN
     ) = new(
-        period, semiMajorAxis, inclination, eccentricity, argumentOfPeriapsis, longitudeOfAscendingNode, meanAnomalyAtEpoch
+        period, 
+        semiMajorAxis, 
+        inclination, 
+        eccentricity, 
+        argumentOfPeriapsis, 
+        longitudeOfAscendingNode, 
+        meanAnomalyAtEpoch
     );
 end
 
 """
-    libYukiAstronomyBody(
+    libYukiAstronomyBody(;
         name::String, 
-        mass::Float64, 
-        radius::Float64, 
+        mass::Real, 
+        radius::Real, 
         orbit::libYukiAstronomyOrbit
     )
-    libYukiAstronomyBody(
-        name::String, 
-        mass::Float64, 
-        radius::Float64
-    )
-    libYukiAstronomyBody()
 Create a new `libYukiAstronomyBody` instance with the specified 
 parameters.
 # Arguments
@@ -112,24 +69,14 @@ the body's orbit.
 """
 mutable struct libYukiAstronomyBody
     name::String
-    mass::Float64
-    radius::Float64
+    mass::Real
+    radius::Real
     orbit::libYukiAstronomyOrbit
-    libYukiAstronomyBody() = new("", NaN, NaN, 
-        libYukiAstronomyOrbit()
-    );
-    libYukiAstronomyBody(
-        name::String, 
-        mass::Float64, 
-        radius::Float64
-    ) = new(name, mass, radius, 
-        libYukiAstronomyOrbit()
-    );
-    libYukiAstronomyBody(
-        name::String, 
-        mass::Float64, 
-        radius::Float64,
-        orbit::libYukiAstronomyOrbit
+    libYukiAstronomyBody(;
+        name::String = "", 
+        mass::Real = NaN, 
+        radius::Real = NaN,
+        orbit::libYukiAstronomyOrbit = libYukiAstronomyOrbit()
     ) = new(name, mass, radius, orbit);
 end
 

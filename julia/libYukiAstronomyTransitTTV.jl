@@ -3,11 +3,11 @@ using Optim
 include("libYukiAstronomyTransitLimbDarkening.jl")
 
 """
-    libYukiAstronomyTransitTTV(
-        oc, 
-        ocErr, 
-        isAcceptable, 
-        predictedMidPoints
+    libYukiAstronomyTransitTTV(;
+        oc::Vector{Float64} = Float64[], 
+        ocErr::Vector{Float64} = Float64[], 
+        isAcceptable::Vector{Bool} = Bool[], 
+        predictedMidPoints::Vector{Float64} = Float64[]
     )
 Define the transit timing variations (TTV) of a planet.
 # Arguments
@@ -21,16 +21,21 @@ on the planet's orbital period and initial transit time.
 - A `libYukiAstronomyTransitTTV` instance containing the TTV data.
 """
 mutable struct libYukiAstronomyTransitTTV
-    oc::Vector{Float64}
-    ocErr::Vector{Float64}
-    isAcceptable::Vector{Bool}
-    predictedMidPoints::Vector{Float64}
-    libYukiAstronomyTransitTTV(
-        oc::Vector{Float64}, 
-		ocErr::Vector{Float64}, 
-		isAcceptable::Vector{Bool}, 
-		predictedMidPoints::Vector{Float64}
-	) = new(oc, ocErr, isAcceptable, predictedMidPoints);
+    oc::AbstractVector{<:Real}
+    ocErr::AbstractVector{<:Real}
+    isAcceptable::AbstractVector{Bool}
+    predictedMidPoints::AbstractVector{<:Real}
+    libYukiAstronomyTransitTTV(;
+        oc::AbstractVector{<:Real} = Float64[], 
+		ocErr::AbstractVector{<:Real} = Float64[], 
+		isAcceptable::AbstractVector{Bool} = Bool[], 
+		predictedMidPoints::AbstractVector{<:Real} = Float64[]
+	) = new(
+		oc, 
+		ocErr, 
+		isAcceptable, 
+		predictedMidPoints
+	);
 end
 
 """
@@ -40,9 +45,9 @@ end
 		transit::libYukiAstronomyTransit
 	) 
     libYukiAstronomyTransitTTVCorrectLightCurve(
-        lightCurve, 
-        ttv, 
-        planetOrbitPeriod
+        lightCurve::libYukiAstronomyTransitLightCurve, 
+        ttv::libYukiAstronomyTransitTTV,
+        planetOrbitPeriod::Real
     )
 	libYukiAstronomyTransitTTVCorrectLightCurve!(
 		lightCurve::libYukiAstronomyTransitLightCurve,
@@ -50,9 +55,9 @@ end
 		transit::libYukiAstronomyTransit
 	)
     libYukiAstronomyTransitTTVCorrectLightCurve!(
-        lightCurve, 
-        ttv, 
-        planetOrbitPeriod
+        lightCurve::libYukiAstronomyTransitLightCurve, 
+        ttv::libYukiAstronomyTransitTTV,
+        planetOrbitPeriod::Real
     )
 Correct the timing of a light curve based on the transit timing 
 variations (TTV) of a planet. The function can be called with either 
@@ -126,7 +131,7 @@ end
 	libYukiAstronomyTransitTTVOCBrent(
 		lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve},
 		transit::libYukiAstronomyTransit,
-		limbDarkeningFunc::AbstractLimbDark,
+		limbDarkeningFunc::AbstractLimbDark;
 		ocMeasurementLengthDurations::Real = 1.0,
 		ocSearchLengthDurations::Real = 0.1,
 		minimumPointCount::Integer = 5,
@@ -140,7 +145,7 @@ end
 		lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve},
 		transit::libYukiAstronomyTransit,
 		orbit::Orbits.AbstractOrbit,
-		limbDarkeningFunc::AbstractLimbDark,
+		limbDarkeningFunc::AbstractLimbDark;
 		ocMeasurementLengthDurations::Real = 1.0,
 		ocSearchLengthDurations::Real = 0.1,
 		minimumPointCount::Integer = 5,
@@ -189,7 +194,7 @@ transit in the input light curves.
 libYukiAstronomyTransitTTVOCBrent(
 	lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve},
 	transit::libYukiAstronomyTransit,
-	limbDarkeningFunc::AbstractLimbDark,
+	limbDarkeningFunc::AbstractLimbDark;
 	ocMeasurementLengthDurations::Real = 1.0,
 	ocSearchLengthDurations::Real = 0.1,
 	minimumPointCount::Integer = 5,
@@ -205,21 +210,21 @@ libYukiAstronomyTransitTTVOCBrent(
         period = transit.planet.orbit.period, 
         duration = transit.planetTransitDuration
     ),
-	limbDarkeningFunc,
-	ocMeasurementLengthDurations,
-	ocSearchLengthDurations,
-	minimumPointCount,
-	minimumPointsPerSide,
-	maximumTimingErrorDurations,
-	profilePointCount,
-	searchCentreFitPointCount,
-	searchWidthMaximumMultiplier
+	limbDarkeningFunc;
+	ocMeasurementLengthDurations = ocMeasurementLengthDurations,
+	ocSearchLengthDurations = ocSearchLengthDurations,
+	minimumPointCount = minimumPointCount,
+	minimumPointsPerSide = minimumPointsPerSide,
+	maximumTimingErrorDurations = maximumTimingErrorDurations,
+	profilePointCount = profilePointCount,
+	searchCentreFitPointCount = searchCentreFitPointCount,
+	searchWidthMaximumMultiplier = searchWidthMaximumMultiplier
 );
 libYukiAstronomyTransitTTVOCBrent(
 	lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve},
 	transit::libYukiAstronomyTransit,
 	orbit::Orbits.AbstractOrbit,
-	limbDarkeningFunc::AbstractLimbDark,
+	limbDarkeningFunc::AbstractLimbDark;
 	ocMeasurementLengthDurations::Real = 1.0,
 	ocSearchLengthDurations::Real = 0.1,
 	minimumPointCount::Integer = 5,
@@ -235,15 +240,15 @@ libYukiAstronomyTransitTTVOCBrent(
 	transit.planetTransitCentreTime,
 	transit.planetStellarRadiusRatio,
 	orbit,
-	limbDarkeningFunc,
-	ocMeasurementLengthDurations,
-	ocSearchLengthDurations,
-	minimumPointCount,
-	minimumPointsPerSide,
-	maximumTimingErrorDurations,
-	profilePointCount,
-	searchCentreFitPointCount,
-	searchWidthMaximumMultiplier
+	limbDarkeningFunc;
+	ocMeasurementLengthDurations = ocMeasurementLengthDurations,
+	ocSearchLengthDurations = ocSearchLengthDurations,
+	minimumPointCount = minimumPointCount,
+	minimumPointsPerSide = minimumPointsPerSide,
+	maximumTimingErrorDurations = maximumTimingErrorDurations,
+	profilePointCount = profilePointCount,
+	searchCentreFitPointCount = searchCentreFitPointCount,
+	searchWidthMaximumMultiplier = searchWidthMaximumMultiplier
 );
 function libYukiAstronomyTransitTTVOCBrent(
 	lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve},
@@ -252,7 +257,7 @@ function libYukiAstronomyTransitTTVOCBrent(
 	planetTransitCentreTime::Real,
 	planetStellarRadiusRatio::Real,
 	orbit::Orbits.AbstractOrbit,
-	limbDarkeningFunc::AbstractLimbDark,
+	limbDarkeningFunc::AbstractLimbDark;
 	ocMeasurementLengthDurations::Real = 1.0,
 	ocSearchLengthDurations::Real = 0.1,
 	minimumPointCount::Integer = 5,
@@ -442,10 +447,10 @@ function libYukiAstronomyTransitTTVOCBrent(
 		end
 	end
 
-	return libYukiAstronomyTransitTTV(
-		oc,
-		ocErr,
-		isAcceptable,
-		predictedMidPoints,
+	return libYukiAstronomyTransitTTV(;
+		oc = oc,
+		ocErr = ocErr,
+		isAcceptable = isAcceptable,
+		predictedMidPoints = predictedMidPoints,
 	);
 end

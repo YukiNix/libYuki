@@ -107,7 +107,9 @@ A constant representing the Saturn radius (SI base unit, 2020).
 const libYukiConstantSaturnRadius = (5.8232 ± 0.0006) * 1.e7;
 
 """
-    libYukiConstantValue(c)
+    libYukiConstantValue(
+        c::Union{Float64, Measurement{Float64}}
+    )
 Return the value of a constant `c` as a `Float64`.
 # Arguments
 - `c`: A constant value, which can be a `Float64` or a 

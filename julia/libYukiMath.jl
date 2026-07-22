@@ -8,13 +8,13 @@ include("libYukiMathInterpolation.jl")
 
 """
     libYukiMathAngleBetweenVectors(
-		vectorA, 
-		vectorB
+		vectorA::AbstractVector{<:Real}, 
+		vectorB::AbstractVector{<:Real}
 	)
 Return the angle between two real vectors in radians.
 # Arguments
-- `vectorA::AbstractVector{<:Real}`: The first vector.
-- `vectorB::AbstractVector{<:Real}`: The second vector.
+- `vectorA`: The first vector.
+- `vectorB`: The second vector.
 # Returns
 - The angle between `vectorA` and `vectorB`, in radians 
 `[0, π]`.
@@ -191,7 +191,7 @@ _libYukiMathIntegrationEvaluateBound(
 """
 	libYukiMathDerivative(
 		f, 
-		x
+		x::Real
 	)
 Calculate the first-order derivative of a function `f` with respect to 
 variable `x`.
@@ -222,7 +222,7 @@ libYukiMathDerivative(
 """
 	libYukiMathJacobian(
 		f, 
-		x
+		x::AbstractVector{<:Real}
 	)
 Calculate the Jacobian matrix of a vector-valued function `f` with 
 respect to a vector of variables `x`.
@@ -242,7 +242,7 @@ libYukiMathJacobian(
 """
 	libYukiMathGradient(
 		f, 
-		x
+		x::AbstractVector{<:Real}
 	)
 Calculate the gradient of a scalar-valued function `f` with respect to 
 a vector of variables `x`.
@@ -274,7 +274,7 @@ end
 """
 	libYukiMathHessian(
 		f,
-		x
+		x::AbstractVector{<:Real}
 	)
 Calculate the second-order derivative (Hessian) of a function `f` 
 with respect to the vector of variables `x`.

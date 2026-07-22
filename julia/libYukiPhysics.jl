@@ -8,11 +8,15 @@ include("libYukiPhysicsField.jl")
 
 """
 	libYukiPhysicsKineticEnergy(
-		body
+		body::libYukiPhysicsBody
 	)
 	libYukiPhysicsKineticEnergy(
-		mass, 
-		velocity
+		mass::Real, 
+		velocity::AbstractVector{<:Real}
+	)
+	libYukiPhysicsKineticEnergy(
+		mass::Real, 
+		velocity::SVector{3, <:Real}
 	)
 Calculate the kinetic energy of a body given its mass 
 and velocity.
@@ -65,11 +69,11 @@ libYukiPhysicsKineticEnergy(
 
 """
 	libYukiPhysicsMomentum(
-		body
+		body::libYukiPhysicsBody
 	)
 	libYukiPhysicsMomentum(
-		mass, 
-		velocity
+		mass::Real, 
+		velocity::AbstractVector{<:Real}
 	)
 Calculate the momentum of a body given its mass and velocity.
 # Arguments

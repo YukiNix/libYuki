@@ -1,10 +1,12 @@
 using LinearAlgebra
 
 """
-	libYukiMathVectorUnit(vectorA)
+	libYukiMathVectorUnit(
+		vectorA::AbstractVector{<:Real}
+	)
 Return the unit vector of a given vector.
 # Arguments
-- `vectorA::AbstractVector{<:Real}`: The input vector.
+- `vectorA`: The input vector.
 # Returns
 - The unit vector of `vectorA`.
 # Notes
@@ -32,12 +34,12 @@ libYukiMathVectorUnit(
 
 """
 	libYukiMathVectorShiftAngularCoordinates(
-		vectorA, 
+		vectorA::AbstractVector{<:Real},
 		rotateAngles...
 	)
 	libYukiMathVectorShiftAngularCoordinates!(
-		vectorOut, 
-		vectorA, 
+		vectorOut::AbstractVector{<:Real},
+		vectorA::AbstractVector{<:Real},
 		rotateAngles...
 	)
 Shift the angular coordinates of a vector by specified 
@@ -117,7 +119,7 @@ provided `Val` type.
 ```
 """
 function libYukiMathVectorShiftAngularCoordinates(
-	vectorA::AbstractVector, 
+	vectorA::AbstractVector{<:Real}, 
 	rotateAngles...
 )
     return libYukiMathVectorShiftAngularCoordinates(
@@ -128,7 +130,7 @@ function libYukiMathVectorShiftAngularCoordinates(
 end
 function libYukiMathVectorShiftAngularCoordinates(
 	::Val{2}, 
-	vectorA::AbstractVector, 
+	vectorA::AbstractVector{<:Real}, 
 	rotateAngle
 )
     vectorMod, vectorAngle = 
@@ -140,7 +142,7 @@ function libYukiMathVectorShiftAngularCoordinates(
 end
 function libYukiMathVectorShiftAngularCoordinates(
 	::Val{3}, 
-	vectorA::AbstractVector, 
+	vectorA::AbstractVector{<:Real}, 
 	rotatePolarAngle, 
 	rotateAzimuthalAngle
 )
@@ -153,8 +155,8 @@ function libYukiMathVectorShiftAngularCoordinates(
     );
 end
 function libYukiMathVectorShiftAngularCoordinates!(
-	vectorOut::AbstractVector, 
-	vectorA::AbstractVector, 
+	vectorOut::AbstractVector{<:Real}, 
+	vectorA::AbstractVector{<:Real}, 
 	rotateAngles...
 )
     return libYukiMathVectorShiftAngularCoordinates!(
@@ -165,9 +167,9 @@ function libYukiMathVectorShiftAngularCoordinates!(
 	);
 end
 function libYukiMathVectorShiftAngularCoordinates!(
-	vectorOut::AbstractVector, 
+	vectorOut::AbstractVector{<:Real}, 
 	::Val{2}, 
-	vectorA::AbstractVector, 
+	vectorA::AbstractVector{<:Real}, 
 	rotateAngle
 )
     vectorMod, vectorAngle = 
@@ -179,9 +181,9 @@ function libYukiMathVectorShiftAngularCoordinates!(
 	);
 end
 function libYukiMathVectorShiftAngularCoordinates!(
-	vectorOut::AbstractVector, 
+	vectorOut::AbstractVector{<:Real}, 
 	::Val{3}, 
-	vectorA::AbstractVector, 
+	vectorA::AbstractVector{<:Real}, 
 	rotatePolarAngle, 
 	rotateAzimuthalAngle
 )
@@ -196,14 +198,16 @@ function libYukiMathVectorShiftAngularCoordinates!(
 end
 
 """
-	libYukiMathVectorModAndAngle(vectorA)
+	libYukiMathVectorModAndAngle(
+		vectorA::AbstractVector{<:Real}
+	)
 	libYukiMathVectorModAndAngle(
 		::Val{2}, 
-		vectorA
+		vectorA::AbstractVector{<:Real}
 	)
 	libYukiMathVectorModAndAngle(
 		::Val{3}, 
-		vectorA
+		vectorA::AbstractVector{<:Real}
 	)
 Calculate the magnitude and angle(s) of a vector.
 # Arguments
@@ -250,7 +254,7 @@ while the azimuthal angle is measured in the xy-plane
 ```
 """
 function libYukiMathVectorModAndAngle(
-	vectorA::AbstractVector
+	vectorA::AbstractVector{<:Real}
 )
     return libYukiMathVectorModAndAngle(
 		Val(length(vectorA)), 
@@ -259,7 +263,7 @@ function libYukiMathVectorModAndAngle(
 end
 function libYukiMathVectorModAndAngle(
 	::Val{2}, 
-	vectorA::AbstractVector
+	vectorA::AbstractVector{<:Real}
 )
     x, y = vectorA
     return LinearAlgebra.hypot(x, y), 
@@ -267,7 +271,7 @@ function libYukiMathVectorModAndAngle(
 end
 function libYukiMathVectorModAndAngle(
 	::Val{3}, 
-	vectorA::AbstractVector
+	vectorA::AbstractVector{<:Real}
 )
     x, y, z = vectorA;
     modXY = LinearAlgebra.hypot(x, y);
@@ -278,24 +282,24 @@ end
 
 """
 	libYukiMathVectorFromPolar(
-		vector2DMod, 
-		polarAngle
+		vector2DMod::Real,
+		polarAngle::Real
 	)
 	libYukiMathVectorFromPolar(
-		vector3DMod, 
-		polarAngle, 
-		azimuthalAngle
+		vector3DMod::Real, 
+		polarAngle::Real, 
+		azimuthalAngle::Real
 	)
 	libYukiMathVectorFromPolar!(
-		vector2D, 
-		vector2DMod, 
-		polarAngle
+		vector2D::AbstractVector{<:Real},
+		vector2DMod::Real,
+		polarAngle::Real
 	)
 	libYukiMathVectorFromPolar!(
-		vector3D, 
-		vector3DMod, 
-		polarAngle, 
-		azimuthalAngle
+		vector3D::AbstractVector{<:Real}, 
+		vector3DMod::Real, 
+		polarAngle::Real, 
+		azimuthalAngle::Real
 	)
 Calculate the Cartesian coordinates of a vector from 
 its polar coordinates.
@@ -367,8 +371,8 @@ xy-plane from the positive x-axis.
 ```
 """
 function libYukiMathVectorFromPolar(
-	vector2DMod, 
-	polarAngle
+	vector2DMod::Real, 
+	polarAngle::Real
 )
 	sinAngle, cosAngle = sincos(polarAngle);
 	return SVector(
@@ -377,9 +381,9 @@ function libYukiMathVectorFromPolar(
 	);
 end
 function libYukiMathVectorFromPolar(
-	vector3DMod, 
-	polarAngle, 
-	azimuthalAngle
+	vector3DMod::Real, 
+	polarAngle::Real, 
+	azimuthalAngle::Real
 )
 	sinPolarAngle, cosPolarAngle = sincos(polarAngle);
 	sinAzimuthalAngle, cosAzimuthalAngle = 
@@ -393,9 +397,9 @@ function libYukiMathVectorFromPolar(
 	);
 end
 function libYukiMathVectorFromPolar!(
-	vector2D, 
-	vector2DMod, 
-	polarAngle
+	vector2D::AbstractVector{<:Real}, 
+	vector2DMod::Real, 
+	polarAngle::Real
 )
     sinAngle, cosAngle = sincos(polarAngle);
     vector2D[1] = vector2DMod * cosAngle;
@@ -403,10 +407,10 @@ function libYukiMathVectorFromPolar!(
 	return vector2D;
 end
 function libYukiMathVectorFromPolar!(
-	vector3D, 
-	vector3DMod, 
-	polarAngle, 
-	azimuthalAngle
+	vector3D::AbstractVector{<:Real}, 
+	vector3DMod::Real, 
+	polarAngle::Real, 
+	azimuthalAngle::Real
 )
 	sinPolarAngle, cosPolarAngle = sincos(polarAngle);
 	sinAzimuthalAngle, cosAzimuthalAngle = 
@@ -422,7 +426,8 @@ end
 """
 	libYukiVectorGradient(
 		f, 
-		vector)
+		vector::AbstractVector{<:Real}
+	)
 Calculate the gradient of a scalar function `f` with respect to a vector variable.
 # Arguments
 - `f`: The scalar function for which to calculate the gradient. It should take a vector as input and return a scalar.
@@ -442,15 +447,14 @@ Calculate the gradient of a scalar function `f` with respect to a vector variabl
 """
 libYukiMathVectorGradient(
 	f, 
-	vector
+	vector::AbstractVector{<:Real}
 ) = 
 	ForwardDiff.gradient(f, vector);
 
-
 """
 	libYukiMathVectorDotProduct(
-		vectorA, 
-		vectorB
+		vectorA::AbstractVector{<:Real}, 
+		vectorB::AbstractVector{<:Real}
 	)
 Return the dot product of two vectors.
 # Arguments
@@ -481,15 +485,15 @@ of corresponding elements of the two vectors.
 ```
 """
 libYukiMathVectorDotProduct(
-	vectorA, 
-	vectorB
+	vectorA::AbstractVector{<:Real}, 
+	vectorB::AbstractVector{<:Real}
 ) = 
 	LinearAlgebra.dot(vectorA, vectorB);
 
 """
 	libYukiMathVectorCrossProduct(
-		vectorA, 
-		vectorB
+		vectorA::AbstractVector{<:Real}, 
+		vectorB::AbstractVector{<:Real}
 	)
 Return the cross product of two vectors.
 # Arguments
@@ -523,13 +527,15 @@ Return the cross product of two vectors.
 ```
 """
 libYukiMathVectorCrossProduct(
-	vectorA, 
-	vectorB
+	vectorA::AbstractVector{<:Real}, 
+	vectorB::AbstractVector{<:Real}
 ) = 
 	LinearAlgebra.cross(vectorA, vectorB);
 
 """
-	libYukiMathVectorQuantity(vectorA)
+	libYukiMathVectorQuantity(
+		vectorA::AbstractVector{<:Real}
+	)
 Return the quantity (magnitude) of a vector.
 # Arguments
 - `vectorA`: The vector.
@@ -549,14 +555,14 @@ Return the quantity (magnitude) of a vector.
 ```
 """
 libYukiMathVectorQuantity(
-	vectorA
+	vectorA::AbstractVector{<:Real}
 ) = 
 	LinearAlgebra.norm(vectorA);
 
 """
 	libYukiMathVectorFieldDivergence(
 		f,
-		x
+		x::AbstractVector{<:Real}
 	)
 Calculate the divergence of a vector field `f` with respect to 
 the vector of variables `x`.
@@ -588,7 +594,7 @@ libYukiMathVectorFieldDivergence(
 """
 	libYukiMathVectorFieldCurl(
 		f,
-		x
+		x::AbstractVector{<:Real}
 	)
 Calculates the curl of a 3-dimensional vector field `f` with respect to 
 the vector of variables `x`.

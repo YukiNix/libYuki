@@ -16,16 +16,16 @@ using Statistics;
 """
 # Model
     libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
-        lightCurve,
-        transit
+        lightCurve::libYukiAstronomyTransitLightCurve,
+        transit::libYukiAstronomyTransit
     )
     libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
-        time, 
-        orbitPeriod, 
-        planetTransitDuration, 
-        planetStellarRadiusRatio, 
-        flux,
-        fluxErr = nothing
+        time::AbstractArray{<:Real}, 
+        orbitPeriod::Real, 
+        planetTransitDuration::Real, 
+        planetStellarRadiusRatio::Real, 
+        flux::AbstractArray{<:Real},
+        fluxErr::Union{AbstractArray{<:Real}, Nothing} = nothing
     )
 A Turing model for fitting transit flux data using a quadratic 
 limb-darkening model. The model takes time, orbit period, 
@@ -123,7 +123,7 @@ end
 
 """
     libYukiAstronomyTransitLimbDarkeningLoadMCMCChains(
-        saveFilePath = "TransitLimbDarkeningMCMCChains.jld2"
+        saveFilePath::String = "TransitLimbDarkeningMCMCChains.jld2"
     )
 Load the MCMC chains for the transit flux model from a JLD2 file.
 # Arguments
@@ -142,8 +142,8 @@ end
 
 """
     libYukiAstronomyTransitLimbDarkeningSaveMCMCChains(
-        transitFluxModelChains, 
-        saveFilePath = "TransitLimbDarkeningMCMCChains.jld2"
+        transitFluxModelChains::Chains, 
+        saveFilePath::String = "TransitLimbDarkeningMCMCChains.jld2"
     )
 Save the MCMC chains for the transit flux model to a JLD2 file.
 # Arguments
@@ -166,10 +166,10 @@ end
         limbDarkeningFunc::AbstractLimbDark
     )
     libYukiAstronomyTransitLimbDarkeningTransitFlux(
-        time, 
-        planetStellarRadiusRatio, 
-        orbit, 
-        limbDarkeningFunc
+        time::AbstractVector{<:Real},
+        planetStellarRadiusRatio::Real,
+        orbit::Orbits.AbstractOrbit, 
+        limbDarkeningFunc::AbstractLimbDark
     )
     libYukiAstronomyTransitLimbDarkeningTransitFlux!(
         lightCurve::libYukiAstronomyTransitLightCurve, 
@@ -177,10 +177,10 @@ end
         limbDarkeningFunc::AbstractLimbDark
     )
     libYukiAstronomyTransitLimbDarkeningTransitFlux!(
-        lightCurve, 
-        planetStellarRadiusRatio, 
-        orbit, 
-        limbDarkeningFunc
+        lightCurve::libYukiAstronomyTransitLightCurve, 
+        planetStellarRadiusRatio::Real, 
+        orbit::Orbits.AbstractOrbit, 
+        limbDarkeningFunc::AbstractLimbDark
     )
 Calculate the transit flux for a given set of time, planet-to-stellar 
 radius ratio, orbit, and limb darkening function. The function can 

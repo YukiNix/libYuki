@@ -11,8 +11,8 @@ const libYukiAstronomyKeplerMissionBJDREFI = 2454833.0;
 
 """
 	libYukiAstronomyKeplerMissionLoadLightCurveFromFITS(
-		KeplerID, 
-		mastKeplerDownloadPath
+		KeplerID::Int, 
+		mastKeplerDownloadPath::String
 	)
 Load the light curve data for a given Kepler ID from FITS files 
 located in the specified directory. The function reads the time, 
@@ -59,7 +59,7 @@ function libYukiAstronomyKeplerMissionLoadLightCurveFromFITS(
 	end
 	sort!(fitsPaths);
 
-	lightCurve = libYukiAstronomyTransitLightCurve([], [], []);
+	lightCurve = libYukiAstronomyTransitLightCurve();
 	for fitsPath in fitsPaths
 		time, timeCorr, flux, fluxErr = FITS(fitsPath, "r") do file
 			table = file[2];
@@ -81,7 +81,7 @@ end
 
 """
 	libYukiAstronomyKeplerMissionLoadConfirmedExoplanetInformation(
-		saveFilePath
+		saveFilePath::String
 	)
 Load the converted confirmed exoplanet information from the Kepler 
 mission from a JLD2 file.
@@ -101,8 +101,8 @@ end
 
 """
 	libYukiAstronomyKeplerMissionSaveConfirmedExoplanetInformation(
-		convertedExoplanetInformationData, 
-		saveFilePath
+		convertedExoplanetInformationData,
+		saveFilePath::String
 	)
 Save the converted confirmed exoplanet information from the Kepler 
 mission to a JLD2 file.
@@ -365,8 +365,8 @@ end
 
 """
 	libYukiAstronomyKeplerMissionDownloadLightCurveFITS(
-		stellarOriginalName, 
-		saveFilePath
+		stellarOriginalName::String, 
+		saveFilePath::String
 	)
 Download Kepler lightcurve by LightKurve(from Python) and save 
 to FITS file.

@@ -2,8 +2,8 @@ using Interpolations;
 
 """
     libYukiMathInterpolationMonotonic(
-        x, 
-        y
+        x::AbstractVector{<:Real}, 
+        y::AbstractVector{<:Real}
     )
 Perform monotonic interpolation on the given data points `(x, y)`. 
 The function returns an interpolation object that can be used to evaluate the interpolated values at any point within the range of 
