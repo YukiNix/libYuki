@@ -9,6 +9,75 @@ include("libYukiMath.jl")
 include("libYukiPhysics.jl")
 
 """
+	libYukiAstronomyTransit(
+		host, 
+		planet, 
+		planetTransitCentreTime, 
+		planetTransitDuration, 
+		planetStellarRadiusRatio
+	)
+	libYukiAstronomyTransit()
+Create a new `libYukiAstronomyTransit` instance with the specified 
+parameters.
+# Arguments
+- `host`: An instance of `libYukiAstronomyBody` representing the 
+host star.
+- `planet`: An instance of `libYukiAstronomyBody` representing 
+the transiting planet.
+- `planetTransitCentreTime`: The time of the transit centre.
+- `planetTransitDuration`: The duration of the transit.
+- `planetStellarRadiusRatio`: The ratio of the planet's radius 
+to the host star's radius.
+# Returns
+- An instance of `libYukiAstronomyTransit`.
+"""
+mutable struct libYukiAstronomyTransit
+	host::libYukiAstronomyBody
+	planet::libYukiAstronomyBody
+	planetTransitCentreTime::Float64
+	planetTransitDuration::Float64
+	planetStellarRadiusRatio::Float64
+	systemDistance::Float64
+	libYukiAstronomyTransit(
+		host::libYukiAstronomyBody,
+		planet::libYukiAstronomyBody,
+		planetTransitCentreTime::Float64,
+		planetTransitDuration::Float64,
+		planetStellarRadiusRatio::Float64,
+		systemDistance::Float64
+	) = new(
+		host, 
+		planet, 
+		planetTransitCentreTime, 
+		planetTransitDuration, 
+		planetStellarRadiusRatio,
+		systemDistance
+	);
+	libYukiAstronomyTransit(
+		host::libYukiAstronomyBody,
+		planet::libYukiAstronomyBody,
+		planetTransitCentreTime::Float64,
+		planetTransitDuration::Float64,
+		planetStellarRadiusRatio::Float64
+	) = new(
+		host, 
+		planet, 
+		planetTransitCentreTime, 
+		planetTransitDuration, 
+		planetStellarRadiusRatio,
+		NaN
+	);
+	libYukiAstronomyTransit() = new(
+		libYukiAstronomyBody(), 
+		libYukiAstronomyBody(), 
+		NaN, 
+		NaN, 
+		NaN,
+		NaN
+	);
+end
+
+"""
 	libYukiAstronomyTransitLightCurve(
 		time, 
 		flux, 
@@ -19,7 +88,8 @@ flux error.
 # Arguments
 - `time`: A vector of time values.
 - `flux`: A vector of flux values corresponding to the time values.
-- `fluxErr`: A vector of flux error values corresponding to the time values.
+- `fluxErr`: A vector of flux error values corresponding to the 
+time values.
 # Returns
 - An instance of `libYukiAstronomyTransitLightCurve`.
 """
@@ -28,9 +98,10 @@ mutable struct libYukiAstronomyTransitLightCurve
 	flux::AbstractVector
 	fluxErr::AbstractVector
 	libYukiAstronomyTransitLightCurve(
-		time, 
-		flux, 
-		fluxErr) = new(
+		time::AbstractVector, 
+		flux::AbstractVector, 
+		fluxErr::AbstractVector
+	) = new(
 			time, 
 			flux, 
 			fluxErr
@@ -40,27 +111,180 @@ end
 include("libYukiAstronomyTransitLimbDarkening.jl")
 
 """
+	libYukiAstronomyTransitExtractTransitPart(
+		lightCurve::libYukiAstronomyTransitLightCurve,
+		transit::libYukiAstronomyTransit
+	)
+	libYukiAstronomyTransitExtractTransitPart(
+		lightCurve, 
+		planetOrbitPeriod,
+		planetTransitCentreTime,
+		planetTransitDuration
+	)
+	libYukiAstronomyTransitExtractTransitPart(
+		lightCurvesSplited, 
+		planetOrbitPeriod,
+		planetTransitCentreTime,
+		planetTransitDuration
+	)
+	libYukiAstronomyTransitExtractTransitPart!(
+		lightCurve::libYukiAstronomyTransitLightCurve,
+		transit::libYukiAstronomyTransit
+	)
+	libYukiAstronomyTransitExtractTransitPart!(
+		lightCurve, 
+		planetOrbitPeriod,
+		planetTransitCentreTime,
+		planetTransitDuration
+	)
+Extract the transit part of a light curve based on the planet's 
+orbital period, transit centre time, and transit duration. The 
+function can be called with either a single 
+`libYukiAstronomyTransitLightCurve` instance or a vector of such 
+instances. In the latter case, the function will extract the transit 
+part from each light curve segment. The function with the `!` 
+suffix modifies the input light curve in place.
+# Arguments
+- `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve` 
+containing time values and flux values.
+- `transit`: An instance of `libYukiAstronomyTransit` containing 
+the planet's orbital period, transit centre time, and transit duration.
+- `lightCurvesSplited`: A vector of 
+`libYukiAstronomyTransitLightCurve` instances, each representing 
+a segment of the light curve.
+- `planetOrbitPeriod`: The orbital period of the planet.
+- `planetTransitCentreTime`: The time of the transit centre.
+- `planetTransitDuration`: The duration of the transit.
+# Returns
+- A new instance of `libYukiAstronomyTransitLightCurve` containing 
+the extracted transit part of the light curve.
+"""
+libYukiAstronomyTransitExtractTransitPart(
+	lightCurve::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit
+) = libYukiAstronomyTransitExtractTransitPart(
+	lightCurve,
+	transit.planet.orbit.period,
+	transit.planetTransitCentreTime,
+	transit.planetTransitDuration
+);
+function libYukiAstronomyTransitExtractTransitPart(
+	lightCurve::libYukiAstronomyTransitLightCurve,
+	planetOrbitPeriod::Real,
+	planetTransitCentreTime::Real,
+	planetTransitDuration::Real
+)
+	lightCurveExtracted = deepcopy(lightCurve);
+	libYukiAstronomyTransitExtractTransitPart!(
+		lightCurveExtracted,
+		planetOrbitPeriod,
+		planetTransitCentreTime,
+		planetTransitDuration
+	);
+	return lightCurveExtracted;
+end
+function libYukiAstronomyTransitExtractTransitPart(
+	lightCurveSplited::Vector{libYukiAstronomyTransitLightCurve}, 
+	planetOrbitPeriod::Real,
+	planetTransitCentreTime::Real,
+	planetTransitDuration::Real
+)
+	lightCurveTransit = libYukiAstronomyTransitLightCurve(
+		Float64[], 
+		Float64[], 
+		Float64[]
+	);
+	for (index, lightCurve) in enumerate(lightCurveSplited)
+		startTime = planetTransitCentreTime + 
+			(index - 1) * planetOrbitPeriod - 
+			planetTransitDuration / 2;
+		endTime = startTime + planetTransitDuration;
+		mask = (lightCurve.time .>= startTime) .& 
+			(lightCurve.time .< endTime);
+		if any(mask)
+			append!(
+				lightCurveTransit.time, 
+				lightCurve.time[mask]
+			);
+			append!(
+				lightCurveTransit.flux, 
+				lightCurve.flux[mask]
+			);
+			append!(
+				lightCurveTransit.fluxErr, 
+				lightCurve.fluxErr[mask]
+			);
+		end
+	end
+	return lightCurveTransit;
+end
+libYukiAstronomyTransitExtractTransitPart!(
+	lightCurve::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit
+) = libYukiAstronomyTransitExtractTransitPart!(
+	lightCurve,
+	transit.planet.orbit.period,
+	transit.planetTransitCentreTime,
+	transit.planetTransitDuration
+);
+function libYukiAstronomyTransitExtractTransitPart!(
+	lightCurve::libYukiAstronomyTransitLightCurve,
+	planetOrbitPeriod::Real,
+	planetTransitCentreTime::Real,
+	planetTransitDuration::Real
+)
+	lightCurveExtracted = libYukiAstronomyTransitExtractTransitPart(
+		libYukiAstronomyTransitSplitLightCurveByPeriod(
+			lightCurve, 
+			planetOrbitPeriod, 
+			planetTransitCentreTime
+		),
+		planetOrbitPeriod,
+		planetTransitCentreTime,
+		planetTransitDuration
+	);
+	lightCurve.time = lightCurveExtracted.time;
+	lightCurve.flux = lightCurveExtracted.flux;
+	lightCurve.fluxErr = lightCurveExtracted.fluxErr;
+	return lightCurve;
+end
+
+"""
+	libYukiAstronomyTransitSplitLightCurveByPeriod(
+		lightCurve::libYukiAstronomyTransitLightCurve,
+		transit::libYukiAstronomyTransit
+	)
 	libYukiAstronomyTransitSplitLightCurveByPeriod(
 		lightCurve, 
-		transitCentreTime, 
-		planetOrbitPeriod
+		planetOrbitPeriod,
+		planetTransitCentreTime
 	)
 Split a light curve into segments based on the planet's orbital 
 period and the transit centre time. Each segment corresponds to 
 one orbital period of the planet.
 # Arguments
 - `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve`.
-- `transitCentreTime`: The time of the transit centre.
+- `transit`: An instance of `libYukiAstronomyTransit` containing 
+the planet's orbital period and transit centre time.
 - `planetOrbitPeriod`: The orbital period of the planet.
+- `planetTransitCentreTime`: The time of the transit centre.
 # Returns
 - A vector of `libYukiAstronomyTransitLightCurve` instances, 
 each representing a segment of the original light curve 
 corresponding to one orbital period.
 """
+libYukiAstronomyTransitSplitLightCurveByPeriod(
+	lightCurve::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit
+) = libYukiAstronomyTransitSplitLightCurveByPeriod(
+	lightCurve::libYukiAstronomyTransitLightCurve, 
+	transit.planet.orbit.period,
+	transit.planetTransitCentreTime
+);
 function libYukiAstronomyTransitSplitLightCurveByPeriod(
 	lightCurve::libYukiAstronomyTransitLightCurve, 
-	transitCentreTime::Real, 
-	planetOrbitPeriod::Real
+	planetOrbitPeriod::Real,
+	planetTransitCentreTime::Real
 )
 	nPeriods = ceil(Int, (maximum(lightCurve.time) - 
 		minimum(lightCurve.time)) / planetOrbitPeriod);
@@ -68,7 +292,7 @@ function libYukiAstronomyTransitSplitLightCurveByPeriod(
 		undef, 
 		nPeriods
 		);
-	firstPeriodTime = transitCentreTime - planetOrbitPeriod / 2;
+	firstPeriodTime = planetTransitCentreTime - planetOrbitPeriod / 2;
 	for index in 1 : nPeriods
 		startTime = firstPeriodTime + 
 			(index - 1) * planetOrbitPeriod;
@@ -193,10 +417,10 @@ function libYukiAstronomyTransitNormalizeLightCurve!(
 end
 
 """
-	libYukiAstronomyTransitGetValidLightCurve(
+	libYukiAstronomyTransitExtractValidLightCurve(
 		lightCurve
 	)
-	libYukiAstronomyTransitGetValidLightCurve!(
+	libYukiAstronomyTransitExtractValidLightCurve!(
 		lightCurve
 	)
 Filter out invalid data points from a light curve, ensuring that 
@@ -208,19 +432,19 @@ filtered light curve is sorted by time.
 - A new instance of `libYukiAstronomyTransitLightCurve` containing 
 only valid data points.
 - Notes
-- The function `libYukiAstronomyTransitGetValidLightCurve!` 
+- The function `libYukiAstronomyTransitExtractValidLightCurve!` 
 modifies the input light curve in place, while 
-`libYukiAstronomyTransitGetValidLightCurve` returns a new 
+`libYukiAstronomyTransitExtractValidLightCurve` returns a new 
 filtered light curve.
 """
-function libYukiAstronomyTransitGetValidLightCurve(
+function libYukiAstronomyTransitExtractValidLightCurve(
 	lightCurve::libYukiAstronomyTransitLightCurve
 )
 	lightCurveValid = deepcopy(lightCurve);
-	libYukiAstronomyTransitGetValidLightCurve!(lightCurveValid);
+	libYukiAstronomyTransitExtractValidLightCurve!(lightCurveValid);
 	return lightCurveValid;
 end
-function libYukiAstronomyTransitGetValidLightCurve!(
+function libYukiAstronomyTransitExtractValidLightCurve!(
 	lightCurve::libYukiAstronomyTransitLightCurve
 )
 	validMask = isfinite.(lightCurve.time) .& 
@@ -299,13 +523,21 @@ end
 """
 	libYukiAstronomyTransitFoldLightCurve(
 		lightCurve, 
+		transit
+	)
+	libYukiAstronomyTransitFoldLightCurve(
+		lightCurve, 
 		planetOrbitPeriod, 
-		transitCentreTime
+		planetTransitCentreTime
+	)
+	libYukiAstronomyTransitFoldLightCurve"(
+		lightCurve, 
+		transit
 	)
 	libYukiAstronomyTransitFoldLightCurve!(
 		lightCurve, 
 		planetOrbitPeriod, 
-		transitCentreTime
+		planetTransitCentreTime
 	)
 Fold a light curve based on the planet's orbital period and the 
 transit centre time. The time values are adjusted to be within the 
@@ -313,8 +545,10 @@ range of -P/2 to P/2, where P is the planet's orbital period.
 The light curve is then sorted by the adjusted time values.
 # Arguments
 - `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve`.
+- `transit`: An instance of `libYukiAstronomyTransit` containing
+the planet's orbital period and transit centre time.
 - `planetOrbitPeriod`: The orbital period of the planet.
-- `transitCentreTime`: The time of the transit centre.
+- `planetTransitCentreTime`: The time of the transit centre.
 # Returns
 - A new instance of `libYukiAstronomyTransitLightCurve` with 
 folded time values.
@@ -324,26 +558,34 @@ the input light curve in place, while
 `libYukiAstronomyTransitFoldLightCurve` returns a new folded 
 light curve.
 """
+libYukiAstronomyTransitFoldLightCurve(
+	lightCurve::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit
+) = libYukiAstronomyTransitFoldLightCurve(
+	lightCurve,
+	transit.planet.orbit.period,
+	transit.planetTransitCentreTime
+);
 function libYukiAstronomyTransitFoldLightCurve(
 	lightCurve::libYukiAstronomyTransitLightCurve,
 	planetOrbitPeriod::Real, 
-	transitCentreTime::Real
+	planetTransitCentreTime::Real
 )
 	lightCurveFolded = deepcopy(lightCurve);
 	libYukiAstronomyTransitFoldLightCurve!(
 		lightCurveFolded, 
 		planetOrbitPeriod, 
-		transitCentreTime
+		planetTransitCentreTime
 	);
 	return lightCurveFolded;
 end
 function libYukiAstronomyTransitFoldLightCurve!(
 	lightCurve::libYukiAstronomyTransitLightCurve,
 	planetOrbitPeriod::Real, 
-	transitCentreTime::Real
+	planetTransitCentreTime::Real
 )
 	lightCurve.time = (
-		(lightCurve.time .- transitCentreTime) .% 
+		(lightCurve.time .- planetTransitCentreTime) .% 
 		planetOrbitPeriod
 	);
 	lightCurve.time[lightCurve.time .> planetOrbitPeriod / 2] .-= 
@@ -355,6 +597,14 @@ function libYukiAstronomyTransitFoldLightCurve!(
 	lightCurve.fluxErr = lightCurve.fluxErr[sortedIndex];
 	return lightCurve;
 end
+libYukiAstronomyTransitFoldLightCurve!(
+	lightCurve::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit
+) = libYukiAstronomyTransitFoldLightCurve!(
+	lightCurve,
+	transit.planet.orbit.period,
+	transit.planetTransitCentreTime
+);
 
 # Detrending lightcurve with Wotan.
 # Dependency: PyCall, wotan(python package).
@@ -384,6 +634,9 @@ end
 
 """
 	libYukiAstronomyTransitTransitDurationEvaluate(
+		transit::libYukiAstronomyTransit
+	)
+	libYukiAstronomyTransitTransitDurationEvaluate(
 		planetOrbitPeriod, 
 		stellarRadius, 
 		planetRadius, 
@@ -393,15 +646,32 @@ end
 Evaluate the transit duration based on the planet's orbital 
 parameters and stellar properties.
 # Arguments
+- `transit`: An instance of `libYukiAstronomyTransit` containing the
+necessary parameters for the evaluation.
 - `planetOrbitPeriod`: The orbital period of the planet.
-- `stellarRadius`: The radius of the host star.
-- `planetRadius`: The radius of the planet.
-- `planetOrbitSemiMajorAxis`: The semi-major axis of the planet's orbit.
+- `stellarRadius`: The radius of the host star (unit consistent 
+with `planetRadius`).
+- `planetRadius`: The radius of the planet (unit consistent 
+with `stellarRadius`).
+- `planetOrbitSemiMajorAxis`: The semi-major axis of the planet's 
+orbit (unit consistent with `stellarRadius` and `planetRadius`).
 - `planetOrbitInclination`: The inclination of the planet's orbit 
 in degrees.
 # Returns
 - The transit duration.
 """
+libYukiAstronomyTransitTransitDurationEvaluate(
+	transit::libYukiAstronomyTransit
+) = libYukiAstronomyTransitTransitDurationEvaluate(
+	transit.planet.orbit.period,
+	transit.host.radius * 
+		libYukiConstantValue(libYukiConstantSolarRadius),
+	transit.planet.radius *
+		libYukiConstantValue(libYukiConstantEarthRadius),
+	transit.planet.orbit.semiMajorAxis *
+		libYukiConstantValue(libYukiConstantAstronomicalUnit),
+	transit.planet.orbit.inclination
+);
 function libYukiAstronomyTransitTransitDurationEvaluate(
     planetOrbitPeriod::Real,
     stellarRadius::Real,
@@ -416,7 +686,7 @@ function libYukiAstronomyTransitTransitDurationEvaluate(
 		planetOrbitInclination);
     contactRadius = 1 + radiusRatio;
     impactParameter < contactRadius || 
-		return zero(float(planetOrbitPeriod))
+		return zero(Float64);
 
     argument = sqrt(contactRadius ^ 2 - impactParameter ^ 2) / 
 		(scaledSemiMajorAxis * inclinationSin);

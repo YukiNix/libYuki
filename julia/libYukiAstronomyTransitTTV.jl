@@ -26,115 +26,225 @@ mutable struct libYukiAstronomyTransitTTV
     isAcceptable::Vector{Bool}
     predictedMidPoints::Vector{Float64}
     libYukiAstronomyTransitTTV(
-        oc, ocErr, isAcceptable, predictedMidPoints) = new(
-            oc, ocErr, isAcceptable, predictedMidPoints);
+        oc::Vector{Float64}, 
+		ocErr::Vector{Float64}, 
+		isAcceptable::Vector{Bool}, 
+		predictedMidPoints::Vector{Float64}
+	) = new(oc, ocErr, isAcceptable, predictedMidPoints);
 end
 
 """
-    libYukiAstronomyTransitTTVFoldLightCurve(
-        ttv, 
+	libYukiAstronomyTransitTTVCorrectLightCurve(
+		lightCurve::libYukiAstronomyTransitLightCurve,
+		ttv::libYukiAstronomyTransitTTV,
+		transit::libYukiAstronomyTransit
+	) 
+    libYukiAstronomyTransitTTVCorrectLightCurve(
         lightCurve, 
-        planetOrbitPeriod, 
-        planetTransitCentreTime = ttv.predictedMidPoints[1]
-    )
-    libYukiAstronomyTransitTTVFoldLightCurve!(
         ttv, 
-        lightCurve, 
-        planetOrbitPeriod, 
-        planetTransitCentreTime = ttv.predictedMidPoints[1]
+        planetOrbitPeriod
     )
-Fold the light curve based on the transit timing variations (TTV)
-of a planet. The function can either return a new folded light curve or
-update the provided light curve in place.
+	libYukiAstronomyTransitTTVCorrectLightCurve!(
+		lightCurve::libYukiAstronomyTransitLightCurve,
+		ttv::libYukiAstronomyTransitTTV,
+		transit::libYukiAstronomyTransit
+	)
+    libYukiAstronomyTransitTTVCorrectLightCurve!(
+        lightCurve, 
+        ttv, 
+        planetOrbitPeriod
+    )
+Correct the timing of a light curve based on the transit timing 
+variations (TTV) of a planet. The function can be called with either 
+a `libYukiAstronomyTransitLightCurve` instance, in which case a new 
+corrected light curve will be returned, or with a 
+`libYukiAstronomyTransitLightCurve` instance and the `!` suffix, 
+in which case the input light curve will be modified in place.
 # Arguments
-- `ttv`: A `libYukiAstronomyTransitTTV` instance containing the 
-TTV data.
-- `lightCurve`: A `libYukiAstronomyTransitLightCurve` instance 
-representing the light curve to be folded.
-- `planetOrbitPeriod`: The orbital period of the planet.
-- `planetTransitCentreTime`: The expected center time of the 
-first transit. Default is `ttv.predictedMidPoints[1]`.
+- `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve` 
+containing time values and flux values to be corrected.
+- `ttv`: An instance of `libYukiAstronomyTransitTTV` containing the 
+transit timing variations to be applied.
+- `transit`: An instance of `libYukiAstronomyTransit` containing the
+planet's orbital period, which is used to determine the time window
+for applying the TTV corrections.
+- `planetOrbitPeriod`: The orbital period of the planet, used to 
+determine the time window for applying the TTV corrections.
 # Returns
-- A new `libYukiAstronomyTransitLightCurve` instance containing 
-the folded light curve
-- Or updates the provided `libYukiAstronomyTransitLightCurve` 
-instance in place.
+- A new `libYukiAstronomyTransitLightCurve` instance with corrected 
+time values,
+- Or modifies the input `libYukiAstronomyTransitLightCurve` instance 
+in place if the `!` suffix is used.
 """
-function libYukiAstronomyTransitTTVFoldLightCurve(
-    ttv::libYukiAstronomyTransitTTV,
+libYukiAstronomyTransitTTVCorrectLightCurve(
+	lightCurve::libYukiAstronomyTransitLightCurve,
+	ttv::libYukiAstronomyTransitTTV,
+	transit::libYukiAstronomyTransit
+) = libYukiAstronomyTransitTTVCorrectLightCurve(
+	lightCurve,
+	ttv,
+	transit.planet.orbit.period
+);
+function libYukiAstronomyTransitTTVCorrectLightCurve(
     lightCurve::libYukiAstronomyTransitLightCurve,
-    planetOrbitPeriod::Real,
-    planetTransitCentreTime::Real = ttv.predictedMidPoints[1]
+    ttv::libYukiAstronomyTransitTTV,
+    planetOrbitPeriod::Real
 )
-    lightCurveFolded = deepcopy(lightCurve);
-    libYukiAstronomyTransitTTVFoldLightCurve!(
-        ttv, 
-        lightCurveFolded, 
+    lightCurveCorrected = deepcopy(lightCurve);
+    libYukiAstronomyTransitTTVCorrectLightCurve!(
+        lightCurveCorrected,
+        ttv,
         planetOrbitPeriod,
-        planetTransitCentreTime
     );
-    return lightCurveFolded;
+    return lightCurveCorrected;
 end
-function libYukiAstronomyTransitTTVFoldLightCurve!(
-    ttv::libYukiAstronomyTransitTTV,
+libYukiAstronomyTransitTTVCorrectLightCurve!(
+	lightCurve::libYukiAstronomyTransitLightCurve,
+	ttv::libYukiAstronomyTransitTTV,
+	transit::libYukiAstronomyTransit
+) = libYukiAstronomyTransitTTVCorrectLightCurve!(
+	lightCurve,
+	ttv,
+	transit.planet.orbit.period
+);
+function libYukiAstronomyTransitTTVCorrectLightCurve!(
     lightCurve::libYukiAstronomyTransitLightCurve,
-    planetOrbitPeriod::Real,
-    planetTransitCentreTime::Real = ttv.predictedMidPoints[1]
+    ttv::libYukiAstronomyTransitTTV,
+    planetOrbitPeriod::Real
 )
-    originalTime = deepcopy(lightCurve.time);
+    originalTime = copy(lightCurve.time);
     for (index, transitMidTime) in enumerate(ttv.predictedMidPoints)
         mask = abs.(originalTime .- transitMidTime) .< 
             0.5 * planetOrbitPeriod;
         lightCurve.time[mask] .-= ttv.oc[index];
     end
-
-    libYukiAstronomyTransitGetValidLightCurve!(lightCurve);
-    libYukiAstronomyTransitFoldLightCurve!(
-        lightCurve, 
-        planetOrbitPeriod,
-        planetTransitCentreTime
-    );
+    libYukiAstronomyTransitExtractValidLightCurve!(lightCurve);
     return lightCurve;
 end
 
 """
+	libYukiAstronomyTransitTTVOCBrent(
+		lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve},
+		transit::libYukiAstronomyTransit,
+		limbDarkeningFunc::AbstractLimbDark,
+		ocMeasurementLengthDurations::Real = 1.0,
+		ocSearchLengthDurations::Real = 0.1,
+		minimumPointCount::Integer = 5,
+		minimumPointsPerSide::Integer = 2,
+		maximumTimingErrorDurations::Real = 0.1,
+		profilePointCount::Integer = 101,
+		searchCentreFitPointCount::Integer = 5,
+		searchWidthMaximumMultiplier::Real = 8.0
+	)
+	libYukiAstronomyTransitTTVOCBrent(
+		lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve},
+		transit::libYukiAstronomyTransit,
+		orbit::Orbits.AbstractOrbit,
+		limbDarkeningFunc::AbstractLimbDark,
+		ocMeasurementLengthDurations::Real = 1.0,
+		ocSearchLengthDurations::Real = 0.1,
+		minimumPointCount::Integer = 5,
+		minimumPointsPerSide::Integer = 2,
+		maximumTimingErrorDurations::Real = 0.1,
+		profilePointCount::Integer = 101,
+		searchCentreFitPointCount::Integer = 5,
+		searchWidthMaximumMultiplier::Real = 8.0
+	)
     libYukiAstronomyTransitTTVOCBrent(
-        lightCurvesSplited, 
-        planetOrbitPeriod, 
-        planetTransitDuration, 
-        planetTransitCentreTime, 
-        planetStellarRadiusRatio, 
-        orbit, 
-        limbDarkeningFunc, 
-        ocMeasurementLengthDurations = 1.0, 
-        ocSearchLengthDurations = 0.1
+        lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve},
+		planetOrbitPeriod::Real,
+		planetTransitDuration::Real,
+		planetTransitCentreTime::Real,
+		planetStellarRadiusRatio::Real,
+		orbit::Orbits.AbstractOrbit,
+		limbDarkeningFunc::AbstractLimbDark;
+		ocMeasurementLengthDurations::Real = 1.0,
+		ocSearchLengthDurations::Real = 0.1,
+		minimumPointCount::Integer = 5,
+		minimumPointsPerSide::Integer = 2,
+		maximumTimingErrorDurations::Real = 0.1,
+		profilePointCount::Integer = 101,
+		searchCentreFitPointCount::Integer = 5,
+		searchWidthMaximumMultiplier::Real = 8.0,
     )
 Calculate the transit timing variations (TTV) using the Brent 
 optimization method.
 # Arguments
-- `lightCurvesSplited`: A vector of `libYukiAstronomyTransitLightCurve`
-instances, each representing a light curve for a single transit.
-- `planetOrbitPeriod`: The orbital period of the planet.
-- `planetTransitDuration`: The duration of the transit.
-- `planetTransitCentreTime`: The expected center time of the first 
-transit.
-- `planetStellarRadiusRatio`: The ratio of the planet's radius to 
-the star's radius.
-- `orbit`: An instance of a subtype of `AbstractOrbit` representing 
-the orbital parameters of the planet.
-- `limbDarkeningFunc`: An instance of a subtype of `AbstractLimbDark` 
-representing the limb darkening model to be used for the transit flux 
-calculation.
-- `ocMeasurementLengthDurations`: The length of time (in units of 
-transit duration) to consider for measuring the transit timing 
-variations. Default is 1.0.
-- `ocSearchLengthDurations`: The length of time (in units of transit 
-duration) to search for the optimal transit timing variations. 
-Default is 0.1.
+- `lightCurvesSplited`: A vector of `libYukiAstronomyTransitLightCurve` instances, each representing a light curve segment for a transit.
+- `transit`: An instance of `libYukiAstronomyTransit` containing the planet's orbital parameters.
+- `orbit`: An instance of `Orbits.AbstractOrbit` representing the planet's orbit.
+- `limbDarkeningFunc`: An instance of `AbstractLimbDark` representing the limb darkening function.
+- `ocMeasurementLengthDurations`: The length of the measurement window in units of the planet's transit duration.
+- `ocSearchLengthDurations`: The length of the search window in units of the planet's transit duration.
+- `minimumPointCount`: The minimum number of data points required in the measurement window to perform the TTV calculation.
+- `minimumPointsPerSide`: The minimum number of data points required on each side of the transit center to perform the TTV calculation.
+- `maximumTimingErrorDurations`: The maximum allowed timing error in units of the planet's transit duration.
+- `profilePointCount`: The number of points to use in the profile likelihood calculation.
+- `searchCentreFitPointCount`: The number of previous accepted TTV measurements to use for fitting the search center.
+- `searchWidthMaximumMultiplier`: The maximum multiplier for the search width in case of boundary hits or incomplete profiles.
 # Returns
 - A vector of calculated transit timing variations (TTV) for each 
 transit in the input light curves.
 """
+libYukiAstronomyTransitTTVOCBrent(
+	lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve},
+	transit::libYukiAstronomyTransit,
+	limbDarkeningFunc::AbstractLimbDark,
+	ocMeasurementLengthDurations::Real = 1.0,
+	ocSearchLengthDurations::Real = 0.1,
+	minimumPointCount::Integer = 5,
+	minimumPointsPerSide::Integer = 2,
+	maximumTimingErrorDurations::Real = 0.1,
+	profilePointCount::Integer = 101,
+	searchCentreFitPointCount::Integer = 5,
+	searchWidthMaximumMultiplier::Real = 8.0
+) = libYukiAstronomyTransitTTVOCBrent(
+	lightCurvesSplited,
+	transit,
+	SimpleOrbit(
+        period = transit.planet.orbit.period, 
+        duration = transit.planetTransitDuration
+    ),
+	limbDarkeningFunc,
+	ocMeasurementLengthDurations,
+	ocSearchLengthDurations,
+	minimumPointCount,
+	minimumPointsPerSide,
+	maximumTimingErrorDurations,
+	profilePointCount,
+	searchCentreFitPointCount,
+	searchWidthMaximumMultiplier
+);
+libYukiAstronomyTransitTTVOCBrent(
+	lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve},
+	transit::libYukiAstronomyTransit,
+	orbit::Orbits.AbstractOrbit,
+	limbDarkeningFunc::AbstractLimbDark,
+	ocMeasurementLengthDurations::Real = 1.0,
+	ocSearchLengthDurations::Real = 0.1,
+	minimumPointCount::Integer = 5,
+	minimumPointsPerSide::Integer = 2,
+	maximumTimingErrorDurations::Real = 0.1,
+	profilePointCount::Integer = 101,
+	searchCentreFitPointCount::Integer = 5,
+	searchWidthMaximumMultiplier::Real = 8.0
+) = libYukiAstronomyTransitTTVOCBrent(
+	lightCurvesSplited,
+	transit.planet.orbit.period,
+	transit.planetTransitDuration,
+	transit.planetTransitCentreTime,
+	transit.planetStellarRadiusRatio,
+	orbit,
+	limbDarkeningFunc,
+	ocMeasurementLengthDurations,
+	ocSearchLengthDurations,
+	minimumPointCount,
+	minimumPointsPerSide,
+	maximumTimingErrorDurations,
+	profilePointCount,
+	searchCentreFitPointCount,
+	searchWidthMaximumMultiplier
+);
 function libYukiAstronomyTransitTTVOCBrent(
 	lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve},
 	planetOrbitPeriod::Real,
@@ -142,50 +252,122 @@ function libYukiAstronomyTransitTTVOCBrent(
 	planetTransitCentreTime::Real,
 	planetStellarRadiusRatio::Real,
 	orbit::Orbits.AbstractOrbit,
-	limbDarkeningFunc::AbstractLimbDark;
+	limbDarkeningFunc::AbstractLimbDark,
 	ocMeasurementLengthDurations::Real = 1.0,
 	ocSearchLengthDurations::Real = 0.1,
 	minimumPointCount::Integer = 5,
 	minimumPointsPerSide::Integer = 2,
 	maximumTimingErrorDurations::Real = 0.1,
 	profilePointCount::Integer = 101,
+	searchCentreFitPointCount::Integer = 5,
+	searchWidthMaximumMultiplier::Real = 8.0,
 )
-	nTransits = length(lightCurvesSplited);
-	oc = fill(NaN, nTransits);
-	ocErr = fill(NaN, nTransits);
-	isAcceptable = falses(nTransits);
+	nTransits = length(lightCurvesSplited)
 
-	predictedMidPoints = planetTransitCentreTime .+ 
-        (0 : nTransits - 1) .* planetOrbitPeriod;
+	oc = fill(NaN, nTransits)
+	ocErr = fill(NaN, nTransits)
+	isAcceptable = fill(false, nTransits)
 
-	searchWidth = ocSearchLengthDurations * planetTransitDuration;
+	epochs = collect(0:nTransits-1)
+
+	predictedMidPoints =
+		planetTransitCentreTime .+
+		epochs .* planetOrbitPeriod
+
+	searchWidth =
+		ocSearchLengthDurations *
+		planetTransitDuration
 
 	for (index, t0) in enumerate(predictedMidPoints)
-		lightCurve = lightCurvesSplited[index];
+		lightCurve = lightCurvesSplited[index]
 
-		mask = abs.(lightCurve.time .- t0) .<
-			ocMeasurementLengthDurations * planetTransitDuration;
+		# 根据此前可靠的 O-C 预测本周期搜索中心。
+		acceptedIndices =
+			index > 1 ?
+			findall(isAcceptable[1:index-1]) :
+			Int[]
 
-		count(mask) >= minimumPointCount || continue
+		searchCentre = 0.0
 
-		t = lightCurve.time[mask] .- t0;
-		f = lightCurve.flux[mask];
+		if length(acceptedIndices) == 1
+			searchCentre =
+				oc[only(acceptedIndices)]
+
+		elseif length(acceptedIndices) >= 2
+			firstFitIndex =
+				max(
+					1,
+					length(acceptedIndices) -
+					searchCentreFitPointCount + 1,
+				)
+
+			fitIndices =
+				acceptedIndices[firstFitIndex:end]
+
+			fitEpoch =
+				Float64.(epochs[fitIndices])
+
+			fitOC =
+				oc[fitIndices]
+
+			designMatrix =
+				hcat(
+					ones(length(fitEpoch)),
+					fitEpoch,
+				)
+
+			driftParameters =
+				designMatrix \ fitOC
+
+			searchCentre =
+				driftParameters[1] +
+				driftParameters[2] *
+				epochs[index]
+		end
+
+		# 测量窗口也必须跟随动态搜索中心移动。
+		measurementCentre =
+			t0 + searchCentre
+
+		mask =
+			abs.(lightCurve.time .- measurementCentre) .<
+			ocMeasurementLengthDurations *
+			planetTransitDuration
+
+		count(mask) >= minimumPointCount ||
+			continue
+
+		# 仍然相对于原始线性历表的 t0，
+		# 因此 dtBest 是完整 O-C。
+		t =
+			lightCurve.time[mask] .- t0
+
+		f =
+			lightCurve.flux[mask]
 
 		all(isfinite, t) || continue
 		all(isfinite, f) || continue
 
 		fluxErrProvided =
 			lightCurve.fluxErr !== nothing &&
-			!isempty(lightCurve.fluxErr);
+			!isempty(lightCurve.fluxErr)
+
 		if fluxErrProvided
 			length(lightCurve.fluxErr) ==
-				length(lightCurve.time) || continue
-			fErr = lightCurve.fluxErr[mask];
+				length(lightCurve.time) ||
+				continue
+
+			fErr =
+				lightCurve.fluxErr[mask]
+
 			all(isfinite, fErr) || continue
 			all(fErr .> 0) || continue
-			sqrtWeight = 1.0 ./ fErr;
+
+			sqrtWeight =
+				1.0 ./ fErr
 		else
-			sqrtWeight = ones(length(t));
+			sqrtWeight =
+				ones(length(t))
 		end
 
 		function loss(dt)
@@ -195,94 +377,163 @@ function libYukiAstronomyTransitTTVOCBrent(
 					planetStellarRadiusRatio,
 					orbit,
 					limbDarkeningFunc,
-				);
+				)
 
-			all(isfinite, templateFlux) || return Inf
-			designMatrix = hcat(
-				ones(length(t)),
-                templateFlux .- 1.0,
-            );
+			all(isfinite, templateFlux) ||
+				return Inf
 
-			weightedDesignMatrix = designMatrix .* 
-                reshape(sqrtWeight, :, 1);
+			designMatrix =
+				hcat(
+					ones(length(t)),
+					templateFlux .- 1.0,
+				)
 
-			parameters = weightedDesignMatrix \
-				(f .* sqrtWeight);
+			weightedDesignMatrix =
+				designMatrix .*
+				reshape(sqrtWeight, :, 1)
 
-			residual = (f .- designMatrix * parameters) .*
-				sqrtWeight;
+			parameters =
+				weightedDesignMatrix \
+				(f .* sqrtWeight)
 
-			return sum(abs2, residual);
+			residual =
+				(f .- designMatrix * parameters) .*
+				sqrtWeight
+
+			return sum(abs2, residual)
 		end
 
-		result = optimize(
-            loss,
-            -searchWidth,
-            searchWidth,
-            Brent(),
-        );
-		Optim.converged(result) || continue
+		# 边界命中或剖面不完整时按 2 倍逐级扩大搜索宽度重试，
+		# 以跟随随历元增大的 O-C，并在链条断裂后重新锁定。
+		widthMultiplier = 1.0
 
-		dtBest = Optim.minimizer(result);
-		lossBest = Optim.minimum(result);
+		while widthMultiplier <= searchWidthMaximumMultiplier
+			currentSearchWidth =
+				widthMultiplier * searchWidth
 
-		isfinite(dtBest) || continue
-		isfinite(lossBest) || continue
-		abs(dtBest) < 0.9 * searchWidth || continue
-		shiftedTime = t .- dtBest
-		count(shiftedTime .< 0) >= minimumPointsPerSide ||
-			continue
-		count(shiftedTime .> 0) >= minimumPointsPerSide ||
-			continue
+			searchLower =
+				searchCentre - currentSearchWidth
 
-		degreesOfFreedom = length(t) - 3;
-		degreesOfFreedom > 0 || continue
-		profileLossIncrease = fluxErrProvided ?
-			1.0 : lossBest / degreesOfFreedom;
+			searchUpper =
+				searchCentre + currentSearchWidth
 
-		isfinite(profileLossIncrease) || continue
-		profileLossIncrease > 0 || continue
+			result =
+				optimize(
+					loss,
+					searchLower,
+					searchUpper,
+					Brent(),
+				)
 
-		dtGrid = collect(
-            range(
-                -searchWidth,
-                searchWidth;
-                length = profilePointCount,
-            ),
-        );
-		lossGrid = loss.(dtGrid);
+			if !Optim.converged(result)
+				widthMultiplier *= 2.0
+				continue
+			end
 
-		targetLoss = lossBest + profileLossIncrease;
+			dtBest =
+				Optim.minimizer(result)
 
-		leftIndices = findall(
-            (dtGrid .< dtBest) .&
-            (lossGrid .>= targetLoss),
-        );
-		rightIndices = findall(
-            (dtGrid .> dtBest) .&
-            (lossGrid .>= targetLoss),
-        );
+			lossBest =
+				Optim.minimum(result)
 
-		isempty(leftIndices) && continue
-		isempty(rightIndices) && continue
-		dtLeft = dtGrid[last(leftIndices)];
-		dtRight = dtGrid[first(rightIndices)];
+			if !(isfinite(dtBest) && isfinite(lossBest))
+				widthMultiplier *= 2.0
+				continue
+			end
 
-		timingError = (dtRight - dtLeft) / 2;
-		isfinite(timingError) || continue
-		timingError > 0 || continue
-		timingError <= maximumTimingErrorDurations * 
-            planetTransitDuration || continue;
+			# 边界检查相对于动态搜索中心；命中则扩宽重试。
+			if !(abs(dtBest - searchCentre) <
+				0.9 * currentSearchWidth)
+				widthMultiplier *= 2.0
+				continue
+			end
 
-		oc[index] = dtBest;
-		ocErr[index] = timingError;
-		isAcceptable[index] = true;
+			shiftedTime =
+				t .- dtBest
+
+			count(shiftedTime .< 0) >=
+				minimumPointsPerSide ||
+				break
+
+			count(shiftedTime .> 0) >=
+				minimumPointsPerSide ||
+				break
+
+			degreesOfFreedom =
+				length(t) - 3
+
+			degreesOfFreedom > 0 ||
+				break
+
+			profileLossIncrease =
+				fluxErrProvided ?
+				1.0 :
+				lossBest / degreesOfFreedom
+
+			(isfinite(profileLossIncrease) &&
+				profileLossIncrease > 0) ||
+				break
+
+			dtGrid =
+				collect(
+					range(
+						searchLower,
+						searchUpper;
+						length = profilePointCount,
+					),
+				)
+
+			lossGrid =
+				loss.(dtGrid)
+
+			targetLoss =
+				lossBest + profileLossIncrease
+
+			leftIndices =
+				findall(
+					(dtGrid .< dtBest) .&
+					(lossGrid .>= targetLoss),
+				)
+
+			rightIndices = findall(
+				(dtGrid .> dtBest) .&
+					(lossGrid .>= targetLoss),
+			);
+
+			if isempty(leftIndices) || isempty(rightIndices)
+				widthMultiplier *= 2.0
+				continue
+			end
+
+			dtLeft =
+				dtGrid[last(leftIndices)]
+
+			dtRight =
+				dtGrid[first(rightIndices)]
+
+			timingError =
+				(dtRight - dtLeft) / 2
+
+			(isfinite(timingError) &&
+				timingError > 0) ||
+				break
+
+			timingError <=
+				maximumTimingErrorDurations *
+				planetTransitDuration ||
+				break
+
+			oc[index] = dtBest
+			ocErr[index] = timingError
+			isAcceptable[index] = true
+			break
+		end
 	end
 
-    return libYukiAstronomyTransitTTV(
-        oc,
-        ocErr,
-        isAcceptable,
-        predictedMidPoints,
-    );
+	return libYukiAstronomyTransitTTV(
+		oc,
+		ocErr,
+		isAcceptable,
+		predictedMidPoints,
+	)
 end

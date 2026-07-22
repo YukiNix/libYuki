@@ -289,8 +289,8 @@ function libYukiAstronomyKeplerMissionConvertExoplanetInformation(
 end
 
 """
-	libYukiAstronomyKeplerMissionGetConfirmedExoplanetInformation()
-Get the confirmed exoplanet information from the Kepler mission 
+	libYukiAstronomyKeplerMissionQueryConfirmedExoplanetInformation()
+Query the confirmed exoplanet information from the Kepler mission 
 using the NASA Exoplanet Archive TAP service. The function retrieves 
 various parameters for each confirmed exoplanet, including its 
 name, host star, distance, orbital period, semi-major axis, 
@@ -299,7 +299,7 @@ eccentricity, radius, mass, and other relevant properties.
 - A DataFrame containing the confirmed exoplanet information from 
 the Kepler mission.
 """
-function libYukiAstronomyKeplerMissionGetConfirmedExoplanetInformation()
+function libYukiAstronomyKeplerMissionQueryConfirmedExoplanetInformation()
 	TAPBaseServiceURL = "https://exoplanetarchive.ipac.caltech.edu" * 
 		"/TAP/sync?query=";
 	TAPDataTypes = "pl_name,hostname,sy_dist,sy_disterr1," * 
@@ -321,7 +321,7 @@ function libYukiAstronomyKeplerMissionGetConfirmedExoplanetInformation()
 		);
 	keplerConfirmedPlanetsData = CSV.File(TAPResponse.body);
 
-	println("#INFO:[" * string(now()) * "] Get " * 
+	println("#INFO:[" * string(now()) * "] Query " * 
 		string(length(keplerConfirmedPlanetsData)) * 
 		" confirmed exoplanets from Kepler."
 		);
@@ -332,15 +332,15 @@ function libYukiAstronomyKeplerMissionGetConfirmedExoplanetInformation()
 end
 
 """
-	libYukiAstronomyKeplerMissionGetConfirmedExoplanetName()
-Get the names of confirmed exoplanets from the Kepler mission using 
+	libYukiAstronomyKeplerMissionQueryConfirmedExoplanetName()
+Query the names of confirmed exoplanets from the Kepler mission using 
 the NASA Exoplanet Archive TAP service. The function retrieves the 
 Kepler ID, KOI name, and confirmed exoplanet name for each planet.
 # Returns
 - A DataFrame containing the Kepler ID, KOI name, and confirmed 
 exoplanet name for each planet.
 """
-function libYukiAstronomyKeplerMissionGetConfirmedExoplanetName()
+function libYukiAstronomyKeplerMissionQueryConfirmedExoplanetName()
 	TAPBaseServiceURL = "https://exoplanetarchive.ipac.caltech.edu" * 
 		"/TAP/sync?query=";
 	TAPDataTypes = "kepid,koi_name,kepler_name,pl_name";
@@ -352,7 +352,7 @@ function libYukiAstronomyKeplerMissionGetConfirmedExoplanetName()
 		"+where+pl_name+like+'Kepler%'&format=csv");
 	keplerConfirmedPlanetsNameData = CSV.File(TAPResponse.body);
 
-	println("#INFO:[" * string(now()) * "] Get " * 
+	println("#INFO:[" * string(now()) * "] Query " * 
 		string(length(keplerConfirmedPlanetsNameData)) * 
 		" confirmed exoplanets from Kepler.");
 
