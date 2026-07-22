@@ -1,0 +1,3 @@
+*.ipynb linguist-detectable=false
+*.jl linguist-language=Julia
+*.jl linguist-detectable=true
