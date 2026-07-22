@@ -201,6 +201,7 @@ function libYukiAstronomyTransitLimbDarkeningTransitFlux!(
         orbit, 
         limbDarkeningFunc
     );
+    return lightCurve;
 end
 
 """

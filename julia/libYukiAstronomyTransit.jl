@@ -189,6 +189,7 @@ function libYukiAstronomyTransitNormalizeLightCurve!(
 	end
 	lightCurve.flux ./= medianFlux;
 	lightCurve.fluxErr ./= abs(medianFlux);
+	return lightCurve;
 end
 
 """
@@ -243,6 +244,7 @@ function libYukiAstronomyTransitGetValidLightCurve!(
 		x -> Float64(x), 
 		lightCurve.fluxErr[sortIdx]
 	);
+	return lightCurve;
 end
 
 """
@@ -351,6 +353,7 @@ function libYukiAstronomyTransitFoldLightCurve!(
 	lightCurve.time = lightCurve.time[sortedIndex];
 	lightCurve.flux = lightCurve.flux[sortedIndex];
 	lightCurve.fluxErr = lightCurve.fluxErr[sortedIndex];
+	return lightCurve;
 end
 
 # Detrending lightcurve with Wotan.

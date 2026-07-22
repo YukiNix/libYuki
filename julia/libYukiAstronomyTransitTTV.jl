@@ -2,14 +2,69 @@ using Optim
 
 include("libYukiAstronomyTransitLimbDarkening.jl")
 
+"""
+    libYukiAstronomyTransitTTV(
+        oc, 
+        ocErr, 
+        isAcceptable, 
+        predictedMidPoints
+    )
+Define the transit timing variations (TTV) of a planet.
+# Arguments
+- `oc`: A vector of observed minus calculated (O-C) transit times.
+- `ocErr`: A vector of errors associated with the O-C transit times.
+- `isAcceptable`: A vector of boolean values indicating whether each
+transit timing measurement is acceptable.
+- `predictedMidPoints`: A vector of predicted mid-transit times based
+on the planet's orbital period and initial transit time.
+# Returns
+- A `libYukiAstronomyTransitTTV` instance containing the TTV data.
+"""
 mutable struct libYukiAstronomyTransitTTV
-    OC::Vector{Float64}
-    OCErr::Vector{Float64}
-    isAccepted::Vector{Bool}
+    oc::Vector{Float64}
+    ocErr::Vector{Float64}
+    isAcceptable::Vector{Bool}
     predictedMidPoints::Vector{Float64}
     libYukiAstronomyTransitTTV(
-        OC, OCErr, isAccepted, predictedMidPoints) = new(
-            OC, OCErr, isAccepted, predictedMidPoints);
+        oc, ocErr, isAcceptable, predictedMidPoints) = new(
+            oc, ocErr, isAcceptable, predictedMidPoints);
+end
+
+function libYukiAstronomyTransitTTVFoldLightCurve(
+    ttv::libYukiAstronomyTransitTTV,
+    lightCurve::libYukiAstronomyTransitLightCurve,
+    planetOrbitPeriod::Real,
+    planetTransitCentreTime::Real = ttv.predictedMidPoints[1]
+)
+    lightCurveFolded = deepcopy(lightCurve);
+    libYukiAstronomyTransitTTVFoldLightCurve!(
+        ttv, 
+        lightCurveFolded, 
+        planetOrbitPeriod,
+        planetTransitCentreTime
+    );
+    return lightCurveFolded;
+end
+function libYukiAstronomyTransitTTVFoldLightCurve!(
+    ttv::libYukiAstronomyTransitTTV,
+    lightCurve::libYukiAstronomyTransitLightCurve,
+    planetOrbitPeriod::Real,
+    planetTransitCentreTime::Real = ttv.predictedMidPoints[1]
+)
+    originalTime = deepcopy(lightCurve.time);
+    for (index, transitMidTime) in enumerate(ttv.predictedMidPoints)
+        mask = abs.(originalTime .- transitMidTime) .< 
+            0.5 * planetOrbitPeriod;
+        lightCurve.time[mask] .-= ttv.oc[index];
+    end
+
+    libYukiAstronomyTransitGetValidLightCurve!(lightCurve);
+    libYukiAstronomyTransitFoldLightCurve!(
+        lightCurve, 
+        planetOrbitPeriod,
+        planetTransitCentreTime
+    );
+    return lightCurve;
 end
 
 """
@@ -68,7 +123,7 @@ function libYukiAstronomyTransitTTVOCBrent(
 	nTransits = length(lightCurvesSplited);
 	oc = fill(NaN, nTransits);
 	ocErr = fill(NaN, nTransits);
-	isAccepted = falses(nTransits);
+	isAcceptable = falses(nTransits);
 
 	predictedMidPoints = planetTransitCentreTime .+ 
         (0 : nTransits - 1) .* planetOrbitPeriod;
@@ -191,13 +246,13 @@ function libYukiAstronomyTransitTTVOCBrent(
 
 		oc[index] = dtBest;
 		ocErr[index] = timingError;
-		isAccepted[index] = true;
+		isAcceptable[index] = true;
 	end
 
     return libYukiAstronomyTransitTTV(
         oc,
         ocErr,
-        isAccepted,
+        isAcceptable,
         predictedMidPoints,
     );
 end

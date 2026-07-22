@@ -400,6 +400,7 @@ function libYukiMathVectorFromPolar!(
     sinAngle, cosAngle = sincos(polarAngle);
     vector2D[1] = vector2DMod * cosAngle;
     vector2D[2] = vector2DMod * sinAngle;
+	return vector2D;
 end
 function libYukiMathVectorFromPolar!(
 	vector3D, 
@@ -415,6 +416,7 @@ function libYukiMathVectorFromPolar!(
 	vector3D[2] = vector3DMod * 
 		sinPolarAngle * sinAzimuthalAngle;
 	vector3D[3] = vector3DMod * cosPolarAngle;
+	return vector3D;
 end
 
 """
