@@ -207,6 +207,37 @@ function libYukiAstronomyTransitExtractTransitPart(
 	);
 	return lightCurveExtracted;
 end
+
+libYukiAstronomyTransitExtractTransitPart!(
+	lightCurve::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit
+) = libYukiAstronomyTransitExtractTransitPart!(
+	lightCurve,
+	transit.planet.orbit.period,
+	transit.planetTransitCentreTime,
+	transit.planetTransitDuration
+);
+function libYukiAstronomyTransitExtractTransitPart!(
+	lightCurve::libYukiAstronomyTransitLightCurve,
+	planetOrbitPeriod::Real,
+	planetTransitCentreTime::Real,
+	planetTransitDuration::Real
+)
+	lightCurveExtracted = libYukiAstronomyTransitExtractTransitPart(
+		libYukiAstronomyTransitSplitLightCurveByPeriod(
+			lightCurve, 
+			planetOrbitPeriod, 
+			planetTransitCentreTime
+		),
+		planetOrbitPeriod,
+		planetTransitCentreTime,
+		planetTransitDuration
+	);
+	lightCurve.time = lightCurveExtracted.time;
+	lightCurve.flux = lightCurveExtracted.flux;
+	lightCurve.fluxErr = lightCurveExtracted.fluxErr;
+	return lightCurve;
+end
 libYukiAstronomyTransitExtractTransitPart(
 	lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve}, 
 	transit::libYukiAstronomyTransit
@@ -246,36 +277,6 @@ function libYukiAstronomyTransitExtractTransitPart(
 		end
 	end
 	return lightCurveTransit;
-end
-libYukiAstronomyTransitExtractTransitPart!(
-	lightCurve::libYukiAstronomyTransitLightCurve,
-	transit::libYukiAstronomyTransit
-) = libYukiAstronomyTransitExtractTransitPart!(
-	lightCurve,
-	transit.planet.orbit.period,
-	transit.planetTransitCentreTime,
-	transit.planetTransitDuration
-);
-function libYukiAstronomyTransitExtractTransitPart!(
-	lightCurve::libYukiAstronomyTransitLightCurve,
-	planetOrbitPeriod::Real,
-	planetTransitCentreTime::Real,
-	planetTransitDuration::Real
-)
-	lightCurveExtracted = libYukiAstronomyTransitExtractTransitPart(
-		libYukiAstronomyTransitSplitLightCurveByPeriod(
-			lightCurve, 
-			planetOrbitPeriod, 
-			planetTransitCentreTime
-		),
-		planetOrbitPeriod,
-		planetTransitCentreTime,
-		planetTransitDuration
-	);
-	lightCurve.time = lightCurveExtracted.time;
-	lightCurve.flux = lightCurveExtracted.flux;
-	lightCurve.fluxErr = lightCurveExtracted.fluxErr;
-	return lightCurve;
 end
 
 """
