@@ -68,25 +68,77 @@ mutable struct libYukiAstronomyTransitVariation
 	);
 end
 
+function libYukiAstronomyTransitVariationTDVORBrent(
+	lightCurveTTVCorrected::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit,
+	variation::libYukiAstronomyTransitVariation;
+	searchFraction::Real = 0.1,
+	profilePointCount::Integer = 101
+)
+	variation.tdvOR = fill(NaN, length(variation.ttvOC));
+	variation.tdvORErr = fill(NaN, length(variation.ttvOC));
+	variation.tdvORIsAcceptable = fill(false, length(variation.ttvOC));
+	if isnan(variation.transitDurationRef)
+		libYukiAstronomyTransitVariationDurationBrent(
+			lightCurveTTVCorrected,
+			transit,
+			variation;
+			searchFraction = searchFraction,
+			updateTransitDuration = true,
+			updateDurationRef = true,
+			profilePointCount = profilePointCount
+		);
+	end
+	transit.planetTransitDuration = variation.transitDurationRef;
+
+	lightCurvesSplited = libYukiAstronomyTransitSplitLightCurveByPeriod(
+		lightCurveTTVCorrected,
+		transit
+	);
+	for (index, lightCurve) in enumerate(lightCurvesSplited)
+		if !variation.ttvOCIsAcceptable[index]
+			continue
+		end
+		durationMeasured, durationMeasuredErr = 
+			libYukiAstronomyTransitVariationDurationBrent(
+				lightCurve,
+				transit;
+				searchFraction = searchFraction,
+				profilePointCount = profilePointCount,
+				updateTransitDuration = false
+			);
+		variation.tdvOR[index] = durationMeasured - variation.transitDurationRef;
+		variation.tdvORErr[index] = durationMeasuredErr;
+		variation.tdvORIsAcceptable[index] = isfinite(durationMeasured) && isfinite(durationMeasuredErr);
+	end
+
+	return variation;
+end
+
 """
 	libYukiAstronomyTransitVariationDurationBrent(
-		lightCurveFolded::libYukiAstronomyTransitLightCurve,
+		lightCurve::libYukiAstronomyTransitLightCurve,
 		transit::libYukiAstronomyTransit,
 		variation::libYukiAstronomyTransitVariation;
-		searchFraction::Real = 0.3,
-		updateTransitDuration::Bool = true
+		searchFraction::Real = 0.1,
+		profilePointCount::Integer = 101,
+		updateDurationRef::Bool = false,
+		updateTransitDuration::Bool = false
 	)
 	libYukiAstronomyTransitVariationDurationBrent(
-		lightCurveFolded::libYukiAstronomyTransitLightCurve,
+		lightCurve::libYukiAstronomyTransitLightCurve,
 		transit::libYukiAstronomyTransit;
-		searchFraction::Real = 0.3,
-		updateTransitDuration::Bool = true
+		searchFraction::Real = 0.1,
+		profilePointCount::Integer = 101,
+		updateTransitDuration::Bool = false
 	)
 Measure the transit duration of a planet using the Brent 
-optimization method.
+optimization method. The light curve must be phase-folded with 
+the transit centre at time zero, since the duration is probed by 
+rescaling the time axis about zero.
 # Arguments
-- `lightCurveFolded`: An instance of 
-`libYukiAstronomyTransitLightCurve` containing the folded light 
+- `lightCurve`: An instance of 
+`libYukiAstronomyTransitLightCurve` containing the light 
 curve data.
 - `transit`: An instance of `libYukiAstronomyTransit` containing 
 the transit parameters.
@@ -94,50 +146,103 @@ the transit parameters.
 to store the measured transit duration.
 - `searchFraction`: A fraction of the initial transit duration to 
 define the search range for optimization.
+- `profilePointCount`: The number of points used to profile the loss 
+function.
+- `updateDurationRef`: A boolean indicating whether to update the 
+reference transit duration in the `variation` object with the 
+measured value.
 - `updateTransitDuration`: A boolean indicating whether to update 
 the transit duration in the `transit` object with the measured value.
 # Returns
-- The measured transit duration.
+- A tuple `(durationRef, durationErr)` containing the measured 
+transit duration and its estimated uncertainty (`NaN` if the 
+uncertainty cannot be determined within the search range).
 """
 function libYukiAstronomyTransitVariationDurationBrent(
-	lightCurveFolded::libYukiAstronomyTransitLightCurve,
+	lightCurve::libYukiAstronomyTransitLightCurve,
 	transit::libYukiAstronomyTransit,
 	variation::libYukiAstronomyTransitVariation;
-	searchFraction::Real = 0.3,
-	updateTransitDuration::Bool = true
+	searchFraction::Real = 0.1,
+	profilePointCount::Integer = 101,
+	updateDurationRef::Bool = false,
+	updateTransitDuration::Bool = false
 )
-	durationRef = libYukiAstronomyTransitVariationDurationBrent(
-		lightCurveFolded,
+	durationRef, durationErr = libYukiAstronomyTransitVariationDurationBrent(
+		lightCurve,
 		transit;
 		searchFraction = searchFraction,
+		profilePointCount = profilePointCount,
 		updateTransitDuration = updateTransitDuration
 	);
-	variation.transitDurationRef = durationRef;
-	return durationRef;
+	if updateDurationRef 
+		variation.transitDurationRef = durationRef;
+	end
+	return durationRef, durationErr;
 end
 function libYukiAstronomyTransitVariationDurationBrent(
-	lightCurveFolded::libYukiAstronomyTransitLightCurve,
+	lightCurve::libYukiAstronomyTransitLightCurve,
 	transit::libYukiAstronomyTransit;
-	searchFraction::Real = 0.3,
-	updateTransitDuration::Bool = true
+	searchFraction::Real = 0.1,
+	profilePointCount::Integer = 101,
+	updateTransitDuration::Bool = false
 )
+	durationInitial = transit.planetTransitDuration;
+	hasFluxErr = lightCurve.fluxErr !== nothing &&
+		!isempty(lightCurve.fluxErr);
+	if hasFluxErr
+		length(lightCurve.fluxErr) ==
+			length(lightCurve.flux) ||
+				throw(
+					DimensionMismatch(
+						"fluxErr and flux must have the same length.",
+					),
+				)
+		all(isfinite, lightCurve.fluxErr) ||
+			throw(
+				ArgumentError(
+					"fluxErr must contain only finite values.",
+				),
+			)
+		all(lightCurve.fluxErr .> 0) ||
+			throw(
+				ArgumentError(
+					"fluxErr must contain only positive values.",
+				),
+			)
+	end
+
 	function loss(duration)
-		scaledTime = lightCurveFolded.time .* 
-			transit.planetTransitDuration ./ duration;
+		scaledTime = lightCurve.time .* 
+			(durationInitial / duration);
 		lightCurveScaled = libYukiAstronomyTransitLightCurve(
-			time = scaledTime
+			time = scaledTime,
 		);
 		libYukiAstronomyTransitLimbDarkeningTransitFlux!(
 			lightCurveScaled,
-			transit
-		)
-		return sum(abs2, lightCurveScaled.flux .- lightCurveFolded.flux);
+			transit,
+		);
+		designMatrix = hcat(
+			ones(length(lightCurve.flux)),
+			lightCurveScaled.flux .- 1,
+		);
+		if hasFluxErr
+			weightedDesignMatrix =
+				designMatrix ./ lightCurve.fluxErr;
+			parameters = weightedDesignMatrix \
+				(lightCurve.flux ./ lightCurve.fluxErr);
+			residual = (
+					designMatrix * parameters .- lightCurve.flux
+				) ./ lightCurve.fluxErr;
+		else
+			parameters = designMatrix \ lightCurve.flux;
+			residual = designMatrix * parameters .-
+				lightCurve.flux;
+		end
+		return sum(abs2, residual);
 	end
 
-	durationLower = transit.planetTransitDuration * 
-		(1 - searchFraction);
-	durationUpper = transit.planetTransitDuration * 
-		(1 + searchFraction);
+	durationLower = durationInitial * (1 - searchFraction);
+	durationUpper = durationInitial * (1 + searchFraction);
 	result = optimize(
 		loss,
 		durationLower,
@@ -145,11 +250,37 @@ function libYukiAstronomyTransitVariationDurationBrent(
 		Brent(),
 	);
 	durationRef = Optim.minimizer(result);
-	transit.planetTransitDuration = updateTransitDuration ? 
-		durationRef : 
-		transit.planetTransitDuration;
-		
-	return durationRef;
+	lossRef = Optim.minimum(result);
+	degreesOfFreedom = length(lightCurve.flux) - 1;
+	lossIncrease = hasFluxErr ?
+		1.0 :
+		lossRef / degreesOfFreedom;
+	targetLoss = lossRef + lossIncrease;
+	durationGrid = range(
+		durationLower,
+		durationUpper;
+		length = profilePointCount
+	);
+	lossGrid = loss.(durationGrid);
+	leftIndices = findall(
+		(durationGrid .< durationRef) .&
+		(lossGrid .>= targetLoss),
+	);
+	rightIndices = findall(
+		(durationGrid .> durationRef) .&
+		(lossGrid .>= targetLoss),
+	);
+	durationErr = (isempty(leftIndices) || isempty(rightIndices)) ?
+		NaN :
+		(
+			durationGrid[first(rightIndices)] - 
+				durationGrid[last(leftIndices)]
+		) / 2;
+	if updateTransitDuration
+		transit.planetTransitDuration = durationRef;
+	end
+
+	return durationRef, durationErr;
 end
 
 """

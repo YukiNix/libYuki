@@ -38,6 +38,7 @@ mutable struct libYukiAstronomyTransit
 	planetTransitCentreTime::Real
 	planetTransitDuration::Real
 	planetStellarRadiusRatio::Real
+	planetTransitDepth::Real
 	systemDistance::Real
 	limbDarkeningFunc::AbstractLimbDark
 	libYukiAstronomyTransit(;
@@ -46,6 +47,7 @@ mutable struct libYukiAstronomyTransit
 		planetTransitCentreTime::Real = NaN,
 		planetTransitDuration::Real = NaN,
 		planetStellarRadiusRatio::Real = NaN,
+		planetTransitDepth::Real = NaN,
 		systemDistance::Real = NaN,
 		limbDarkeningFunc::AbstractLimbDark = QuadLimbDark(
 			[0.4804, 0.1867]
@@ -56,6 +58,7 @@ mutable struct libYukiAstronomyTransit
 		planetTransitCentreTime, 
 		planetTransitDuration, 
 		planetStellarRadiusRatio,
+		planetTransitDepth,
 		systemDistance,
 		limbDarkeningFunc
 	);
