@@ -54,7 +54,6 @@ mutable struct libYukiAstronomyTransitVariation
 		tdvORErr::AbstractVector{<:Real} = Float64[],
 		tdvORIsAcceptable::AbstractVector{Bool} = Bool[],
 		transitDurationRef::Real = NaN,
-		transitAmplitudeRef::Real = NaN,
 		transitMidPoints::AbstractVector{<:Real} = Float64[],
 		predictedMidPoints::AbstractVector{<:Real} = Float64[]
 	) = new(
@@ -65,38 +64,9 @@ mutable struct libYukiAstronomyTransitVariation
 		tdvORErr,
 		tdvORIsAcceptable,
 		transitDurationRef,
-		transitAmplitudeRef,
 		transitMidPoints,
 		predictedMidPoints
 	);
-end
-
-function libYukiAstronomyTransitVariationAmplitude(
-	lightCurveTDVCorrected::libYukiAstronomyTransitLightCurve,
-	transit::libYukiAstronomyTransit;
-)
-	lightCurveModel = libYukiAstronomyTransitLightCurve(
-		time = lightCurveTDVCorrected.time,
-	);
-	libYukiAstronomyTransitLimbDarkeningTransitFlux!(
-		lightCurveModel,
-		transit,
-	);
-	templateDepth = 1 .- lightCurveModel.flux;
-	observedDepth = 1 .- lightCurveTDVCorrected.flux;
-	if lightCurveTDVCorrected.fluxErr === nothing ||
-	   isempty(lightCurveTDVCorrected.fluxErr)
-		weight = ones(length(lightCurveTDVCorrected.flux));
-	else
-		weight = 1 ./ lightCurveTDVCorrected.fluxErr .^ 2;
-	end
-	depthScale =
-		sum(weight .* templateDepth .* observedDepth) /
-		sum(weight .* templateDepth .^ 2);
-	depthScaleErr =
-		sqrt(1 / sum(weight .* templateDepth .^ 2));
-
-	return depthScale, depthScaleErr;
 end
 
 """ 
@@ -221,6 +191,7 @@ function libYukiAstronomyTransitVariationTDVORBrent(
 		if !variation.ttvOCIsAcceptable[index]
 			continue
 		end
+		lightCurve.time .-= variation.predictedMidPoints[index];
 		durationMeasured, durationMeasuredErr = 
 			libYukiAstronomyTransitVariationDurationBrent(
 				lightCurve,
@@ -764,7 +735,7 @@ function libYukiAstronomyTransitVariationTTVOCBrent(
 			templateLightCurve = 
 				libYukiAstronomyTransitLimbDarkeningTransitFlux(
 					t .- dt,
-					sqrt(planetTransitDepth),
+					planetTransitDepth,
 					orbit,
 					limbDarkeningFunc,
 				);
