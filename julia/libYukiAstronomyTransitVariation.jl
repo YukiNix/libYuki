@@ -69,6 +69,90 @@ mutable struct libYukiAstronomyTransitVariation
 end
 
 """
+	libYukiAstronomyTransitVariationDurationBrent(
+		lightCurveFolded::libYukiAstronomyTransitLightCurve,
+		transit::libYukiAstronomyTransit,
+		variation::libYukiAstronomyTransitVariation;
+		searchFraction::Real = 0.3,
+		updateTransitDuration::Bool = true
+	)
+	libYukiAstronomyTransitVariationDurationBrent(
+		lightCurveFolded::libYukiAstronomyTransitLightCurve,
+		transit::libYukiAstronomyTransit;
+		searchFraction::Real = 0.3,
+		updateTransitDuration::Bool = true
+	)
+Measure the transit duration of a planet using the Brent 
+optimization method.
+# Arguments
+- `lightCurveFolded`: An instance of 
+`libYukiAstronomyTransitLightCurve` containing the folded light 
+curve data.
+- `transit`: An instance of `libYukiAstronomyTransit` containing 
+the transit parameters.
+- `variation`: An instance of `libYukiAstronomyTransitVariation` 
+to store the measured transit duration.
+- `searchFraction`: A fraction of the initial transit duration to 
+define the search range for optimization.
+- `updateTransitDuration`: A boolean indicating whether to update 
+the transit duration in the `transit` object with the measured value.
+# Returns
+- The measured transit duration.
+"""
+function libYukiAstronomyTransitVariationDurationBrent(
+	lightCurveFolded::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit,
+	variation::libYukiAstronomyTransitVariation;
+	searchFraction::Real = 0.3,
+	updateTransitDuration::Bool = true
+)
+	durationRef = libYukiAstronomyTransitVariationDurationBrent(
+		lightCurveFolded,
+		transit;
+		searchFraction = searchFraction,
+		updateTransitDuration = updateTransitDuration
+	);
+	variation.transitDurationRef = durationRef;
+	return durationRef;
+end
+function libYukiAstronomyTransitVariationDurationBrent(
+	lightCurveFolded::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit;
+	searchFraction::Real = 0.3,
+	updateTransitDuration::Bool = true
+)
+	function loss(duration)
+		scaledTime = lightCurveFolded.time .* 
+			transit.planetTransitDuration ./ duration;
+		lightCurveScaled = libYukiAstronomyTransitLightCurve(
+			time = scaledTime
+		);
+		libYukiAstronomyTransitLimbDarkeningTransitFlux!(
+			lightCurveScaled,
+			transit
+		)
+		return sum(abs2, lightCurveScaled.flux .- lightCurveFolded.flux);
+	end
+
+	durationLower = transit.planetTransitDuration * 
+		(1 - searchFraction);
+	durationUpper = transit.planetTransitDuration * 
+		(1 + searchFraction);
+	result = optimize(
+		loss,
+		durationLower,
+		durationUpper,
+		Brent(),
+	);
+	durationRef = Optim.minimizer(result);
+	transit.planetTransitDuration = updateTransitDuration ? 
+		durationRef : 
+		transit.planetTransitDuration;
+		
+	return durationRef;
+end
+
+"""
 	libYukiAstronomyTransitVariationLoadVariation(
 		filename::String
 	)
