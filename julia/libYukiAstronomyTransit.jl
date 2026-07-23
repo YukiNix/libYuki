@@ -14,7 +14,7 @@ include("libYukiPhysics.jl")
 		planet::libYukiAstronomyBody = libYukiAstronomyBody(), 
 		planetTransitCentreTime::Real = NaN, 
 		planetTransitDuration::Real = NaN, 
-		planetStellarRadiusRatio::Real = NaN,
+		planetTransitDepth::Real = NaN,
 		limbDarkeningFunc::AbstractLimbDark = QuadLimbDark([0.4804, 0.1867])
 	)
 Create a new `libYukiAstronomyTransit` instance with the specified 
@@ -26,8 +26,7 @@ host star.
 the transiting planet.
 - `planetTransitCentreTime`: The time of the transit centre.
 - `planetTransitDuration`: The duration of the transit.
-- `planetStellarRadiusRatio`: The ratio of the planet's radius 
-to the host star's radius.
+- `planetTransitDepth`: The depth of the transit, representing the fractional decrease in flux during the transit.
 - `limbDarkeningFunc`: An instance of `AbstractLimbDark` representing the limb darkening function. Default is `QuadLimbDark([0.4804, 0.1867])`, from (Hippke, 2019).
 # Returns
 - An instance of `libYukiAstronomyTransit`.
@@ -37,7 +36,6 @@ mutable struct libYukiAstronomyTransit
 	planet::libYukiAstronomyBody
 	planetTransitCentreTime::Real
 	planetTransitDuration::Real
-	planetStellarRadiusRatio::Real
 	planetTransitDepth::Real
 	systemDistance::Real
 	limbDarkeningFunc::AbstractLimbDark
@@ -46,7 +44,6 @@ mutable struct libYukiAstronomyTransit
 		planet::libYukiAstronomyBody = libYukiAstronomyBody(),
 		planetTransitCentreTime::Real = NaN,
 		planetTransitDuration::Real = NaN,
-		planetStellarRadiusRatio::Real = NaN,
 		planetTransitDepth::Real = NaN,
 		systemDistance::Real = NaN,
 		limbDarkeningFunc::AbstractLimbDark = QuadLimbDark(
@@ -56,8 +53,7 @@ mutable struct libYukiAstronomyTransit
 		host, 
 		planet, 
 		planetTransitCentreTime, 
-		planetTransitDuration, 
-		planetStellarRadiusRatio,
+		planetTransitDuration,
 		planetTransitDepth,
 		systemDistance,
 		limbDarkeningFunc

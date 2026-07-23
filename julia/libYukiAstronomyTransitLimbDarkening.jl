@@ -23,7 +23,7 @@ using Statistics;
         time::AbstractArray{<:Real}, 
         orbitPeriod::Real, 
         planetTransitDuration::Real, 
-        planetStellarRadiusRatio::Real, 
+        planetTransitDepth::Real, 
         flux::AbstractArray{<:Real}
     )
 A Turing model for fitting transit flux data using a quadratic 
@@ -39,8 +39,7 @@ transit parameters.
 - `time`: A vector of time values at which the transit flux is observed.
 - `orbitPeriod`: The orbital period of the planet.
 - `planetTransitDuration`: The duration of the transit.
-- `planetStellarRadiusRatio`: The ratio of the planet's radius to 
-the star's radius.
+- `planetTransitDepth`: The depth of the transit, representing the fractional decrease in flux during the transit.
 - `flux`: A vector of observed flux values corresponding to the 
 time values.
 # Returns
@@ -54,14 +53,14 @@ libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
         lightCurve.time,
         transit.planet.orbit.period,
         transit.planetTransitDuration,
-        transit.planetStellarRadiusRatio,
+        transit.planetTransitDepth,
         lightCurve.flux
 );
 @model function libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
     time::AbstractArray{<:Real},
     orbitPeriod::Real,
     planetTransitDuration::Real,
-    planetStellarRadiusRatio::Real,
+    planetTransitDepth::Real,
     flux::AbstractArray{<:Real}
 )
     # Kipping (2013) reparameterization for quadratic limb darkening.
@@ -78,7 +77,7 @@ libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
         );
     modelLightCurve = libYukiAstronomyTransitLimbDarkeningTransitFlux(
         time, 
-        planetStellarRadiusRatio, 
+        planetTransitDepth,
         orbit, 
         limbDarkeningFunc
     );
@@ -163,13 +162,13 @@ end
     )
     libYukiAstronomyTransitLimbDarkeningTransitFlux!(
         lightCurve::libYukiAstronomyTransitLightCurve, 
-        planetStellarRadiusRatio::Real, 
+        planetTransitDepth::Real, 
         orbit::Orbits.AbstractOrbit, 
         limbDarkeningFunc::AbstractLimbDark
     )
     libYukiAstronomyTransitLimbDarkeningTransitFlux(
         time::AbstractVector{<:Real}, 
-        planetStellarRadiusRatio::Real, 
+        planetTransitDepth::Real, 
         orbit::Orbits.AbstractOrbit, 
         limbDarkeningFunc::AbstractLimbDark
     )
@@ -181,8 +180,7 @@ The results are stored in the provided light curve object.
 containing time and flux data.
 - `transit`: An instance of `libYukiAstronomyTransit` containing 
 transit parameters.
-- `planetStellarRadiusRatio`: The ratio of the planet's radius to 
-the star's radius.
+- `planetTransitDepth`: The depth of the transit, representing the fractional decrease in flux during the transit.
 - `orbit`: An instance of `Orbits.AbstractOrbit` representing the 
 orbital parameters of the planet.
 - `limbDarkeningFunc`: An instance of `AbstractLimbDark` representing 
@@ -196,7 +194,7 @@ libYukiAstronomyTransitLimbDarkeningTransitFlux!(
     transit::libYukiAstronomyTransit
 ) = libYukiAstronomyTransitLimbDarkeningTransitFlux!(
     lightCurve, 
-    transit.planetStellarRadiusRatio,
+    transit.planetTransitDepth,
     SimpleOrbit(
         period = transit.planet.orbit.period,
         duration = transit.planetTransitDuration
@@ -205,14 +203,14 @@ libYukiAstronomyTransitLimbDarkeningTransitFlux!(
 );
 function libYukiAstronomyTransitLimbDarkeningTransitFlux!(
     lightCurve::libYukiAstronomyTransitLightCurve, 
-    planetStellarRadiusRatio::Real, 
+    planetTransitDepth::Real, 
     orbit::Orbits.AbstractOrbit, 
     limbDarkeningFunc::AbstractLimbDark
 )
     lightCurveGenerated = 
         libYukiAstronomyTransitLimbDarkeningTransitFlux(
             lightCurve.time, 
-            planetStellarRadiusRatio, 
+            planetTransitDepth, 
             orbit, 
             limbDarkeningFunc
         );
@@ -221,7 +219,7 @@ function libYukiAstronomyTransitLimbDarkeningTransitFlux!(
 end
 function libYukiAstronomyTransitLimbDarkeningTransitFlux(
     time::AbstractVector{<:Real}, 
-    planetStellarRadiusRatio::Real, 
+    planetTransitDepth::Real, 
     orbit::Orbits.AbstractOrbit, 
     limbDarkeningFunc::AbstractLimbDark
 )
@@ -230,7 +228,7 @@ function libYukiAstronomyTransitLimbDarkeningTransitFlux(
         flux = limbDarkeningFunc.(
             Ref(orbit), 
             time, 
-            planetStellarRadiusRatio
+            sqrt(planetTransitDepth)
         )
     );
 end

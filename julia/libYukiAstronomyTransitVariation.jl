@@ -43,6 +43,7 @@ mutable struct libYukiAstronomyTransitVariation
 	tdvORErr::AbstractVector{<:Real}
 	tdvORIsAcceptable::AbstractVector{Bool}
 	transitDurationRef::Real
+	transitAmplitudeRef::Real
 	transitMidPoints::AbstractVector{<:Real}
     predictedMidPoints::AbstractVector{<:Real}
     libYukiAstronomyTransitVariation(;
@@ -53,6 +54,7 @@ mutable struct libYukiAstronomyTransitVariation
 		tdvORErr::AbstractVector{<:Real} = Float64[],
 		tdvORIsAcceptable::AbstractVector{Bool} = Bool[],
 		transitDurationRef::Real = NaN,
+		transitAmplitudeRef::Real = NaN,
 		transitMidPoints::AbstractVector{<:Real} = Float64[],
 		predictedMidPoints::AbstractVector{<:Real} = Float64[]
 	) = new(
@@ -63,9 +65,38 @@ mutable struct libYukiAstronomyTransitVariation
 		tdvORErr,
 		tdvORIsAcceptable,
 		transitDurationRef,
+		transitAmplitudeRef,
 		transitMidPoints,
 		predictedMidPoints
 	);
+end
+
+function libYukiAstronomyTransitVariationAmplitude(
+	lightCurveTDVCorrected::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit;
+)
+	lightCurveModel = libYukiAstronomyTransitLightCurve(
+		time = lightCurveTDVCorrected.time,
+	);
+	libYukiAstronomyTransitLimbDarkeningTransitFlux!(
+		lightCurveModel,
+		transit,
+	);
+	templateDepth = 1 .- lightCurveModel.flux;
+	observedDepth = 1 .- lightCurveTDVCorrected.flux;
+	if lightCurveTDVCorrected.fluxErr === nothing ||
+	   isempty(lightCurveTDVCorrected.fluxErr)
+		weight = ones(length(lightCurveTDVCorrected.flux));
+	else
+		weight = 1 ./ lightCurveTDVCorrected.fluxErr .^ 2;
+	end
+	depthScale =
+		sum(weight .* templateDepth .* observedDepth) /
+		sum(weight .* templateDepth .^ 2);
+	depthScaleErr =
+		sqrt(1 / sum(weight .* templateDepth .^ 2));
+
+	return depthScale, depthScaleErr;
 end
 
 """ 
@@ -528,7 +559,7 @@ end
 		planetOrbitPeriod::Real,
 		planetTransitDuration::Real,
 		planetTransitCentreTime::Real,
-		planetStellarRadiusRatio::Real,
+		planetTransitDepth::Real,
 		orbit::Orbits.AbstractOrbit,
 		limbDarkeningFunc::AbstractLimbDark;
 		ocMeasurementLengthDurations::Real = 1.0,
@@ -557,8 +588,8 @@ transits.
 - `planetTransitDuration`: The duration of the transit.
 - `planetTransitCentreTime`: The predicted mid-transit time based on 
 the planet's orbital parameters.
-- `planetStellarRadiusRatio`: The ratio of the planet's radius to the 
-host star's radius.
+- `planetTransitDepth`: The depth of the transit, representing the 
+fractional decrease in flux during the transit.
 - `orbit`: An instance of `Orbits.AbstractOrbit` representing the 
 planet's orbit.
 - `limbDarkeningFunc`: An instance of `AbstractLimbDark` representing 
@@ -629,7 +660,7 @@ libYukiAstronomyTransitVariationTTVOCBrent(
 	transit.planet.orbit.period,
 	transit.planetTransitDuration,
 	transit.planetTransitCentreTime,
-	transit.planetStellarRadiusRatio,
+	transit.planetTransitDepth,
 	SimpleOrbit(
 		period = transit.planet.orbit.period, 
 		duration = transit.planetTransitDuration
@@ -649,7 +680,7 @@ function libYukiAstronomyTransitVariationTTVOCBrent(
 	planetOrbitPeriod::Real,
 	planetTransitDuration::Real,
 	planetTransitCentreTime::Real,
-	planetStellarRadiusRatio::Real,
+	planetTransitDepth::Real,
 	orbit::Orbits.AbstractOrbit,
 	limbDarkeningFunc::AbstractLimbDark;
 	ocMeasurementLengthDurations::Real = 1.0,
@@ -733,7 +764,7 @@ function libYukiAstronomyTransitVariationTTVOCBrent(
 			templateLightCurve = 
 				libYukiAstronomyTransitLimbDarkeningTransitFlux(
 					t .- dt,
-					planetStellarRadiusRatio,
+					sqrt(planetTransitDepth),
 					orbit,
 					limbDarkeningFunc,
 				);
