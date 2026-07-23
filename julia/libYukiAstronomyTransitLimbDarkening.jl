@@ -24,8 +24,7 @@ using Statistics;
         orbitPeriod::Real, 
         planetTransitDuration::Real, 
         planetStellarRadiusRatio::Real, 
-        flux::AbstractArray{<:Real},
-        fluxErr::Union{AbstractArray{<:Real}, Nothing} = nothing
+        flux::AbstractArray{<:Real}
     )
 A Turing model for fitting transit flux data using a quadratic 
 limb-darkening model. The model takes time, orbit period, 
@@ -44,8 +43,6 @@ transit parameters.
 the star's radius.
 - `flux`: A vector of observed flux values corresponding to the 
 time values.
-- `fluxErr`: Optional per-point flux uncertainty. If provided, the 
-model uses `sqrt(fluxErr[i]^2 + sigmaJitter^2)` as observational sigma.
 # Returns
 - A Turing model for Bayesian inference of limb-darkening and 
 noise parameters.
@@ -79,14 +76,14 @@ libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
             planetTransitDuration, 
             [u1, u2]
         );
-    fModel = libYukiAstronomyTransitLimbDarkeningTransitFlux(
+    modelLightCurve = libYukiAstronomyTransitLimbDarkeningTransitFlux(
         time, 
         planetStellarRadiusRatio, 
         orbit, 
         limbDarkeningFunc
     );
     for index in eachindex(time)
-        flux[index] ~ Normal(fModel[index], 0.01)
+        flux[index] ~ Normal(modelLightCurve.flux[index], 0.01)
     end
 end
 
@@ -160,21 +157,9 @@ function libYukiAstronomyTransitLimbDarkeningSaveMCMCChains(
 end
 
 """
-    libYukiAstronomyTransitLimbDarkeningTransitFlux(
-        time::AbstractVector{<:Real},
-        transit::libYukiAstronomyTransit,
-        limbDarkeningFunc::AbstractLimbDark
-    )
-    libYukiAstronomyTransitLimbDarkeningTransitFlux(
-        time::AbstractVector{<:Real},
-        planetStellarRadiusRatio::Real,
-        orbit::Orbits.AbstractOrbit, 
-        limbDarkeningFunc::AbstractLimbDark
-    )
     libYukiAstronomyTransitLimbDarkeningTransitFlux!(
-        lightCurve::libYukiAstronomyTransitLightCurve, 
-        transit::libYukiAstronomyTransit,
-        limbDarkeningFunc::AbstractLimbDark
+        lightCurve::libYukiAstronomyTransitLightCurve,
+        transit::libYukiAstronomyTransit
     )
     libYukiAstronomyTransitLimbDarkeningTransitFlux!(
         lightCurve::libYukiAstronomyTransitLightCurve, 
@@ -182,69 +167,41 @@ end
         orbit::Orbits.AbstractOrbit, 
         limbDarkeningFunc::AbstractLimbDark
     )
-Calculate the transit flux for a given set of time, planet-to-stellar 
-radius ratio, orbit, and limb darkening function. The function can 
-be called with either a vector of time or a 
-`libYukiAstronomyTransitLightCurve` instance. In the latter case, 
-the flux values in the light curve will be updated in place.
+    libYukiAstronomyTransitLimbDarkeningTransitFlux(
+        time::AbstractVector{<:Real}, 
+        planetStellarRadiusRatio::Real, 
+        orbit::Orbits.AbstractOrbit, 
+        limbDarkeningFunc::AbstractLimbDark
+    )
+Compute the transit flux for a given light curve and transit 
+parameters, optionally using a specified limb darkening function. 
+The results are stored in the provided light curve object.
 # Arguments
-- `time`: A vector of time values at which to calculate the transit 
-flux.
+- `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve` 
+containing time and flux data.
+- `transit`: An instance of `libYukiAstronomyTransit` containing 
+transit parameters.
 - `planetStellarRadiusRatio`: The ratio of the planet's radius to 
 the star's radius.
-- `orbit`: An instance of a subtype of `AbstractOrbit` representing 
-the orbital parameters of the planet.
-- `limbDarkeningFunc`: An instance of a subtype of `AbstractLimbDark` 
-representing the limb darkening model to be used for the transit 
-flux calculation.
-- `transit`: An instance of `libYukiAstronomyTransit` containing
-transit parameters, including the planet-to-stellar radius ratio
-and orbital parameters.
-- `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve` 
-containing time values and flux values to be updated.
+- `orbit`: An instance of `Orbits.AbstractOrbit` representing the 
+orbital parameters of the planet.
+- `limbDarkeningFunc`: An instance of `AbstractLimbDark` representing 
+the limb darkening function to be used in the transit flux calculation.
 # Returns
-- A vector of calculated transit flux values corresponding to the 
-input time.
-- Or updates the flux values in the provided 
-`libYukiAstronomyTransitLightCurve` instance in place.
+- The updated `lightCurve` object with computed flux values based 
+on the transit parameters and limb darkening function.
 """
-libYukiAstronomyTransitLimbDarkeningTransitFlux(
-    time::AbstractVector{<:Real},
-    transit::libYukiAstronomyTransit,
-    limbDarkeningFunc::AbstractLimbDark
-) = libYukiAstronomyTransitLimbDarkeningTransitFlux(
-    time, 
-    transit.planetStellarRadiusRatio, 
-    SimpleOrbit(
-        period = transit.planet.orbit.period, 
-        duration = transit.planetTransitDuration
-    ),
-    limbDarkeningFunc
-);
-function libYukiAstronomyTransitLimbDarkeningTransitFlux(
-    time::AbstractVector{<:Real}, 
-    planetStellarRadiusRatio::Real, 
-    orbit::Orbits.AbstractOrbit, 
-    limbDarkeningFunc::AbstractLimbDark
-)
-	return limbDarkeningFunc.(
-        Ref(orbit), 
-        time, 
-        planetStellarRadiusRatio
-    );
-end
 libYukiAstronomyTransitLimbDarkeningTransitFlux!(
-    lightCurve::libYukiAstronomyTransitLightCurve, 
-    transit::libYukiAstronomyTransit,
-    limbDarkeningFunc::AbstractLimbDark
+    lightCurve::libYukiAstronomyTransitLightCurve,
+    transit::libYukiAstronomyTransit
 ) = libYukiAstronomyTransitLimbDarkeningTransitFlux!(
     lightCurve, 
-    transit.planetStellarRadiusRatio, 
+    transit.planetStellarRadiusRatio,
     SimpleOrbit(
-        period = transit.planet.orbit.period, 
+        period = transit.planet.orbit.period,
         duration = transit.planetTransitDuration
     ),
-    limbDarkeningFunc
+    transit.limbDarkeningFunc
 );
 function libYukiAstronomyTransitLimbDarkeningTransitFlux!(
     lightCurve::libYukiAstronomyTransitLightCurve, 
@@ -252,13 +209,30 @@ function libYukiAstronomyTransitLimbDarkeningTransitFlux!(
     orbit::Orbits.AbstractOrbit, 
     limbDarkeningFunc::AbstractLimbDark
 )
-    lightCurve.flux .= libYukiAstronomyTransitLimbDarkeningTransitFlux(
-        lightCurve.time, 
-        planetStellarRadiusRatio, 
-        orbit, 
-        limbDarkeningFunc
-    );
+    lightCurveGenerated = 
+        libYukiAstronomyTransitLimbDarkeningTransitFlux(
+            lightCurve.time, 
+            planetStellarRadiusRatio, 
+            orbit, 
+            limbDarkeningFunc
+        );
+    lightCurve.flux = lightCurveGenerated.flux;
     return lightCurve;
+end
+function libYukiAstronomyTransitLimbDarkeningTransitFlux(
+    time::AbstractVector{<:Real}, 
+    planetStellarRadiusRatio::Real, 
+    orbit::Orbits.AbstractOrbit, 
+    limbDarkeningFunc::AbstractLimbDark
+)
+	return libYukiAstronomyTransitLightCurve(
+        time = time,
+        flux = limbDarkeningFunc.(
+            Ref(orbit), 
+            time, 
+            planetStellarRadiusRatio
+        )
+    );
 end
 
 """
@@ -284,14 +258,18 @@ the polynomial limb darkening model.
 - A tuple containing a `SimpleOrbit` instance and a 
 `PolynomialLimbDark` instance.
 """
-libYukiAstronomyTransitLimbDarkeningPolynomial(
+function libYukiAstronomyTransitLimbDarkeningPolynomial(
     transit::libYukiAstronomyTransit,
     limbPolynomialDarkeningParameters::AbstractVector{<:Real}
-) = libYukiAstronomyTransitLimbDarkeningPolynomial(
-    transit.planet.orbit.period,
-    transit.planetTransitDuration,
-    limbPolynomialDarkeningParameters
-);
+)
+    orbit, transit.limbDarkeningFunc = 
+        libYukiAstronomyTransitLimbDarkeningPolynomial(
+            transit.planet.orbit.period,
+            transit.planetTransitDuration,
+            limbPolynomialDarkeningParameters
+        );
+    return orbit, transit.limbDarkeningFunc;
+end
 function libYukiAstronomyTransitLimbDarkeningPolynomial(
     orbitPeriod::Real, 
     planetTransitDuration::Real, limbPolynomialDarkeningParameters::AbstractVector{<:Real}
@@ -337,32 +315,29 @@ the limb darkening coefficients will be derived.
 - A tuple containing a `SimpleOrbit` instance and a `QuadLimbDark` 
 instance.
 """
-libYukiAstronomyTransitLimbDarkeningQuadratic(
+function libYukiAstronomyTransitLimbDarkeningQuadratic(
     transit::libYukiAstronomyTransit,
     chain::Chains
-) = libYukiAstronomyTransitLimbDarkeningQuadratic(
-    transit.planet.orbit.period,
-    transit.planetTransitDuration,
-    chain
-);
-libYukiAstronomyTransitLimbDarkeningQuadratic(
+)
+    orbit, transit.limbDarkeningFunc = 
+        libYukiAstronomyTransitLimbDarkeningQuadratic(
+            transit.planet.orbit.period,
+            transit.planetTransitDuration,
+            chain
+        );
+    return orbit, transit.limbDarkeningFunc;
+end
+function libYukiAstronomyTransitLimbDarkeningQuadratic(
     transit::libYukiAstronomyTransit,
     limbQuadraticDarkeningParameters::AbstractVector{<:Real}
-) = libYukiAstronomyTransitLimbDarkeningQuadratic(
-    transit.planet.orbit.period,
-    transit.planetTransitDuration,
-    limbQuadraticDarkeningParameters
-);
-function libYukiAstronomyTransitLimbDarkeningQuadratic(
-    orbitPeriod::Real, 
-    planetTransitDuration::Real, 
-    limbQuadraticDarkeningParameters::AbstractVector{<:Real}
-) 
-    return SimpleOrbit(
-            period = orbitPeriod, 
-            duration = planetTransitDuration
-        ), 
-        QuadLimbDark(limbQuadraticDarkeningParameters);
+)
+    orbit, transit.limbDarkeningFunc =  
+        libYukiAstronomyTransitLimbDarkeningQuadratic(
+            transit.planet.orbit.period,
+            transit.planetTransitDuration,
+            limbQuadraticDarkeningParameters
+        );
+    return orbit, transit.limbDarkeningFunc;
 end
 function libYukiAstronomyTransitLimbDarkeningQuadratic(
     orbitPeriod::Real, 
@@ -388,4 +363,15 @@ function libYukiAstronomyTransitLimbDarkeningQuadratic(
         planetTransitDuration,
         [u1, u2]
     );
+end
+function libYukiAstronomyTransitLimbDarkeningQuadratic(
+    orbitPeriod::Real, 
+    planetTransitDuration::Real, 
+    limbQuadraticDarkeningParameters::AbstractVector{<:Real}
+) 
+    return SimpleOrbit(
+            period = orbitPeriod, 
+            duration = planetTransitDuration
+        ), 
+        QuadLimbDark(limbQuadraticDarkeningParameters);
 end

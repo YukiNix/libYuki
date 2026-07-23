@@ -14,7 +14,8 @@ include("libYukiPhysics.jl")
 		planet::libYukiAstronomyBody = libYukiAstronomyBody(), 
 		planetTransitCentreTime::Real = NaN, 
 		planetTransitDuration::Real = NaN, 
-		planetStellarRadiusRatio::Real = NaN
+		planetStellarRadiusRatio::Real = NaN,
+		limbDarkeningFunc::AbstractLimbDark = QuadLimbDark([0.4804, 0.1867])
 	)
 Create a new `libYukiAstronomyTransit` instance with the specified 
 parameters.
@@ -27,6 +28,7 @@ the transiting planet.
 - `planetTransitDuration`: The duration of the transit.
 - `planetStellarRadiusRatio`: The ratio of the planet's radius 
 to the host star's radius.
+- `limbDarkeningFunc`: An instance of `AbstractLimbDark` representing the limb darkening function. Default is `QuadLimbDark([0.4804, 0.1867])`, from (Hippke, 2019).
 # Returns
 - An instance of `libYukiAstronomyTransit`.
 """
@@ -37,20 +39,25 @@ mutable struct libYukiAstronomyTransit
 	planetTransitDuration::Real
 	planetStellarRadiusRatio::Real
 	systemDistance::Real
+	limbDarkeningFunc::AbstractLimbDark
 	libYukiAstronomyTransit(;
 		host::libYukiAstronomyBody = libYukiAstronomyBody(),
 		planet::libYukiAstronomyBody = libYukiAstronomyBody(),
 		planetTransitCentreTime::Real = NaN,
 		planetTransitDuration::Real = NaN,
 		planetStellarRadiusRatio::Real = NaN,
-		systemDistance::Real = NaN
+		systemDistance::Real = NaN,
+		limbDarkeningFunc::AbstractLimbDark = QuadLimbDark(
+			[0.4804, 0.1867]
+		)
 	) = new(
 		host, 
 		planet, 
 		planetTransitCentreTime, 
 		planetTransitDuration, 
 		planetStellarRadiusRatio,
-		systemDistance
+		systemDistance,
+		limbDarkeningFunc
 	);
 end
 
@@ -86,6 +93,43 @@ mutable struct libYukiAstronomyTransitLightCurve
 end
 
 include("libYukiAstronomyTransitLimbDarkening.jl")
+include("libYukiAstronomyTransitVariation.jl")
+
+"""
+	libYukiAstronomyTransitLoadTransit(
+		filePath::String
+	)
+Load a `libYukiAstronomyTransit` instance from a file using JLD2 format.
+# Arguments
+- `filePath`: The path to the file from which the transit data will 
+be loaded.
+# Returns
+- A `libYukiAstronomyTransit` instance containing the loaded 
+transit data.
+"""
+function libYukiAstronomyTransitLoadTransit(
+	filePath::String
+)
+	@load filePath transit;
+	return transit;
+end
+
+"""
+	libYukiAstronomyTransitSaveTransit(
+		transit::libYukiAstronomyTransit,
+		filePath::String
+	)
+Save a `libYukiAstronomyTransit` instance to a file using JLD2 format.
+# Arguments
+- `transit`: An instance of `libYukiAstronomyTransit` to be saved.
+- `filePath`: The path to the file where the transit data will be saved.
+"""
+function libYukiAstronomyTransitSaveTransit(
+	transit::libYukiAstronomyTransit,
+	filePath::String
+)
+	@save filePath transit;
+end
 
 """
 	libYukiAstronomyTransitExtractTransitPart(
@@ -97,6 +141,10 @@ include("libYukiAstronomyTransitLimbDarkening.jl")
 		planetOrbitPeriod::Real,
 		planetTransitCentreTime::Real,
 		planetTransitDuration::Real
+	)
+	libYukiAstronomyTransitExtractTransitPart(
+		lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve}, 
+		transit::libYukiAstronomyTransit
 	)
 	libYukiAstronomyTransitExtractTransitPart(
 		lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve}, 
@@ -160,6 +208,15 @@ function libYukiAstronomyTransitExtractTransitPart(
 	);
 	return lightCurveExtracted;
 end
+libYukiAstronomyTransitExtractTransitPart(
+	lightCurvesSplited::Vector{libYukiAstronomyTransitLightCurve}, 
+	transit::libYukiAstronomyTransit
+) = libYukiAstronomyTransitExtractTransitPart(
+	lightCurvesSplited,
+	transit.planet.orbit.period,
+	transit.planetTransitCentreTime,
+	transit.planetTransitDuration
+);
 function libYukiAstronomyTransitExtractTransitPart(
 	lightCurveSplited::Vector{libYukiAstronomyTransitLightCurve}, 
 	planetOrbitPeriod::Real,
@@ -250,7 +307,7 @@ libYukiAstronomyTransitSplitLightCurveByPeriod(
 	lightCurve::libYukiAstronomyTransitLightCurve,
 	transit::libYukiAstronomyTransit
 ) = libYukiAstronomyTransitSplitLightCurveByPeriod(
-	lightCurve::libYukiAstronomyTransitLightCurve, 
+	lightCurve, 
 	transit.planet.orbit.period,
 	transit.planetTransitCentreTime
 );
@@ -264,7 +321,7 @@ function libYukiAstronomyTransitSplitLightCurveByPeriod(
 	splitLightCurves = Vector{libYukiAstronomyTransitLightCurve}(
 		undef, 
 		nPeriods
-		);
+	);
 	firstPeriodTime = planetTransitCentreTime - planetOrbitPeriod / 2;
 	for index in 1 : nPeriods
 		startTime = firstPeriodTime + 

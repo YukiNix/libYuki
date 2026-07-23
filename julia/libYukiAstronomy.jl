@@ -82,5 +82,5 @@ end
 
 include("libYukiAstronomyTransit.jl")
 include("libYukiAstronomyTransitLimbDarkening.jl")
-include("libYukiAstronomyTransitTTV.jl")
+include("libYukiAstronomyTransitVariation.jl")
 include("libYukiAstronomyKeplerMission.jl")
