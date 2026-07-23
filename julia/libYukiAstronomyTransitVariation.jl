@@ -69,6 +69,67 @@ mutable struct libYukiAstronomyTransitVariation
 	);
 end
 
+"""
+	libYukiAstronomyTransitVariationRevertCorrection(
+		lightCurveCorrected::libYukiAstronomyTransitLightCurve,
+		transit::libYukiAstronomyTransit,
+		variation::libYukiAstronomyTransitVariation
+	)
+	libYukiAstronomyTransitVariationRevertCorrection!(
+		lightCurveCorrected::libYukiAstronomyTransitLightCurve,
+		transit::libYukiAstronomyTransit,
+		variation::libYukiAstronomyTransitVariation
+	)
+Revert the timing corrections applied to a light curve based on the 
+transit timing variations (TTV) and transit duration variations (TDV) 
+of a planet. 
+# Arguments
+- `lightCurveCorrected`: An instance of 
+`libYukiAstronomyTransitLightCurve` containing the light curve 
+data that has been corrected for TTV and TDV.
+- `transit`: An instance of `libYukiAstronomyTransit` containing 
+the transit parameters.
+- `variation`: An instance of `libYukiAstronomyTransitVariation` 
+containing the TTV and TDV data used for the corrections.
+# Returns
+- A new `libYukiAstronomyTransitLightCurve` instance with reverted 
+time values, or modifies the input `libYukiAstronomyTransitLightCurve`
+ instance in place if the `!` suffix is used.
+"""
+function libYukiAstronomyTransitVariationRevertCorrection(
+	lightCurveCorrected::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit,
+	variation::libYukiAstronomyTransitVariation
+)
+	lightCurveReverted = deepcopy(lightCurveCorrected);
+	return libYukiAstronomyTransitVariationRevertCorrection!(
+		lightCurveReverted,
+		transit,
+		variation
+	);
+end
+function libYukiAstronomyTransitVariationRevertCorrection!(
+	lightCurveCorrected::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit,
+	variation::libYukiAstronomyTransitVariation
+)
+	originalTime = copy(lightCurveCorrected.time);
+	for (index, transitMidTime) in enumerate(variation.predictedMidPoints)
+		mask = abs.(originalTime .- transitMidTime) .<
+			0.5 * transit.planet.orbit.period;
+		durationScale = 1 +
+			(variation.tdvOR[index] / variation.transitDurationRef);
+		if variation.tdvORIsAcceptable[index]
+			lightCurveCorrected.time[mask] .= transitMidTime .+
+			(originalTime[mask] .- transitMidTime) .* durationScale;
+		end
+		if variation.ttvOCIsAcceptable[index]
+			lightCurveCorrected.time[mask] .+= variation.ttvOC[index];
+		end
+	end
+	return lightCurveCorrected;
+end
+
 """ 
 	libYukiAstronomyTransitVariationTDVCorrectLightCurve(
 		lightCurveTTVCorrected::libYukiAstronomyTransitLightCurve,
