@@ -68,6 +68,94 @@ mutable struct libYukiAstronomyTransitVariation
 	);
 end
 
+""" 
+	libYukiAstronomyTransitVariationTDVCorrectLightCurve(
+		lightCurveTTVCorrected::libYukiAstronomyTransitLightCurve,
+		transit::libYukiAstronomyTransit,
+		variation::libYukiAstronomyTransitVariation
+	)
+	libYukiAstronomyTransitVariationTDVCorrectLightCurve!(
+		lightCurveTTVCorrected::libYukiAstronomyTransitLightCurve,
+		transit::libYukiAstronomyTransit,
+		variation::libYukiAstronomyTransitVariation
+	)
+Correct the timing of a light curve based on the transit duration 
+variations (TDV).
+# Arguments
+- `lightCurveTTVCorrected`: An instance of 
+`libYukiAstronomyTransitLightCurve` containing the light curve data 
+that has been corrected for transit timing variations (TTV).
+- `transit`: An instance of `libYukiAstronomyTransit` containing 
+the transit parameters.
+- `variation`: An instance of `libYukiAstronomyTransitVariation` 
+containing the transit duration variations to be applied.
+# Returns
+- A new `libYukiAstronomyTransitLightCurve` instance with corrected 
+time values, or modifies the input `libYukiAstronomyTransitLightCurve` 
+instance in place if the `!` suffix is used.
+"""
+function libYukiAstronomyTransitVariationTDVCorrectLightCurve(
+	lightCurveTTVCorrected::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit,
+	variation::libYukiAstronomyTransitVariation
+)
+	lightCurveTDVCorrected = deepcopy(lightCurveTTVCorrected);
+	libYukiAstronomyTransitVariationTDVCorrectLightCurve!(
+		lightCurveTDVCorrected,
+		transit,
+		variation
+	);
+	return lightCurveTDVCorrected;
+end
+function libYukiAstronomyTransitVariationTDVCorrectLightCurve!(
+	lightCurveTTVCorrected::libYukiAstronomyTransitLightCurve,
+	transit::libYukiAstronomyTransit,
+	variation::libYukiAstronomyTransitVariation
+)
+	originalTime = copy(lightCurveTTVCorrected.time);
+    for (index, transitMidTime) in enumerate(variation.predictedMidPoints)
+		mask = abs.(originalTime .- transitMidTime) .<
+			0.5 * transit.planet.orbit.period;
+		durationScale = 1 +
+			(variation.tdvOR[index] / transit.planetTransitDuration);
+		lightCurveTTVCorrected.time[mask] .= transitMidTime .+
+			(originalTime[mask] .- transitMidTime) ./ durationScale;
+	end
+    libYukiAstronomyTransitExtractValidLightCurve!(lightCurveTTVCorrected);
+
+    return lightCurveTTVCorrected;
+end
+
+"""
+	libYukiAstronomyTransitVariationTDVORBrent(
+		lightCurveTTVCorrected::libYukiAstronomyTransitLightCurve,
+		transit::libYukiAstronomyTransit,
+		variation::libYukiAstronomyTransitVariation;
+		searchFraction::Real = 0.1,
+		profilePointCount::Integer = 101
+	)
+Measure the transit duration variations (TDV) of a planet using the
+Brent optimization method. The function requires a light curve that has
+been corrected for transit timing variations (TTV) and a reference
+transit duration. If the reference transit duration is not provided, 
+it will be measured from the folded light curve.
+# Arguments
+- `lightCurveTTVCorrected`: An instance of 
+`libYukiAstronomyTransitLightCurve` containing the light curve data
+that has been corrected for transit timing variations (TTV).
+- `transit`: An instance of `libYukiAstronomyTransit` containing 
+the transit parameters.
+- `variation`: An instance of `libYukiAstronomyTransitVariation` to 
+store the measured transit duration variations (TDV).
+- `searchFraction`: A fraction of the initial transit duration to 
+define the search range for optimization.
+- `profilePointCount`: The number of points used to profile the 
+loss function for error estimation.
+# Returns
+- The updated `libYukiAstronomyTransitVariation` instance 
+containing the measured transit duration variations (TDV) and 
+their associated errors.
+"""
 function libYukiAstronomyTransitVariationTDVORBrent(
 	lightCurveTTVCorrected::libYukiAstronomyTransitLightCurve,
 	transit::libYukiAstronomyTransit,
@@ -80,7 +168,10 @@ function libYukiAstronomyTransitVariationTDVORBrent(
 	variation.tdvORIsAcceptable = fill(false, length(variation.ttvOC));
 	if isnan(variation.transitDurationRef)
 		libYukiAstronomyTransitVariationDurationBrent(
-			lightCurveTTVCorrected,
+			libYukiAstronomyTransitFoldLightCurve(
+				lightCurveTTVCorrected,
+				transit
+			),
 			transit,
 			variation;
 			searchFraction = searchFraction,
