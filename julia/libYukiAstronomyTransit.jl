@@ -15,7 +15,10 @@ include("libYukiPhysics.jl")
 		planetTransitCentreTime::Real = NaN, 
 		planetTransitDuration::Real = NaN, 
 		planetTransitDepth::Real = NaN,
-		limbDarkeningFunc::AbstractLimbDark = QuadLimbDark([0.4804, 0.1867])
+		planetTransitChordLength::Real = NaN,
+		systemDistance::Real = NaN,
+		limbDarkeningFunc::AbstractLimbDark = QuadLimbDark([0.4804, 
+		0.1867])
 	)
 Create a new `libYukiAstronomyTransit` instance with the specified 
 parameters.
@@ -26,8 +29,15 @@ host star.
 the transiting planet.
 - `planetTransitCentreTime`: The time of the transit centre.
 - `planetTransitDuration`: The duration of the transit.
-- `planetTransitDepth`: The depth of the transit, representing the fractional decrease in flux during the transit.
-- `limbDarkeningFunc`: An instance of `AbstractLimbDark` representing the limb darkening function. Default is `QuadLimbDark([0.4804, 0.1867])`, from (Hippke, 2019).
+- `planetTransitDepth`: The depth of the transit, representing 
+the fractional decrease in flux during the transit.
+- `planetTransitChordLength`: The chord length of the transit, 
+representing the distance across the stellar disk that the planet 
+traverses during the transit.
+- `systemDistance`: The distance to the planetary system.
+- `limbDarkeningFunc`: An instance of `AbstractLimbDark` representing 
+the limb darkening function. Default is 
+`QuadLimbDark([0.4804, 0.1867])`, from (Hippke, 2019).
 # Returns
 - An instance of `libYukiAstronomyTransit`.
 """
@@ -37,6 +47,7 @@ mutable struct libYukiAstronomyTransit
 	planetTransitCentreTime::Real
 	planetTransitDuration::Real
 	planetTransitDepth::Real
+	planetTransitChordLength::Real
 	systemDistance::Real
 	limbDarkeningFunc::AbstractLimbDark
 	libYukiAstronomyTransit(;
@@ -45,6 +56,7 @@ mutable struct libYukiAstronomyTransit
 		planetTransitCentreTime::Real = NaN,
 		planetTransitDuration::Real = NaN,
 		planetTransitDepth::Real = NaN,
+		planetTransitChordLength::Real = NaN,
 		systemDistance::Real = NaN,
 		limbDarkeningFunc::AbstractLimbDark = QuadLimbDark(
 			[0.4804, 0.1867]
@@ -55,6 +67,7 @@ mutable struct libYukiAstronomyTransit
 		planetTransitCentreTime, 
 		planetTransitDuration,
 		planetTransitDepth,
+		planetTransitChordLength,
 		systemDistance,
 		limbDarkeningFunc
 	);

@@ -53,6 +53,7 @@ Current Julia code uses / 当前 Julia 代码使用:
 - PyCall
 - QuadGK
 - Random
+- SmoothingSplines
 - StableRNGs
 - StaticArrays
 - Statistics

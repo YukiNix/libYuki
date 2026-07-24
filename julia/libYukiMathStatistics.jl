@@ -1,7 +1,39 @@
-using MultivariateStats, Statistics;
+using MultivariateStats, Statistics, SmoothingSplines;
 
 """
-    libYukiMathIsotonicRegression(
+    libYukiMathStatisticsSmoothingSplines(
+        x::AbstractVector{<:Real}, 
+        y::AbstractVector{<:Real};
+        lambda::Real = 1e-4
+    )
+Perform smoothing splines on the given data points `(x, y)` with
+a specified smoothing parameter `lambda`. The function returns the
+estimated values of `y` based on the smoothing splines fit.
+# Arguments
+- `x`: A vector of independent variable values.
+- `y`: A vector of dependent variable values.
+- `lambda`: A smoothing parameter that controls the trade-off between
+the smoothness of the fitted curve and the closeness to the data points.
+# Returns
+- A vector of estimated `y` values based on the smoothing splines fit.
+"""
+function libYukiMathStatisticsSmoothingSplines(
+	x::AbstractVector{<:Real},
+	y::AbstractVector{<:Real};
+	lambda::Real = 1e-4,
+)
+	idx = sortperm(x);
+	spline = SmoothingSplines.fit(
+		SmoothingSpline,
+		x[idx],
+		y[idx],
+		lambda,
+	);
+	return predict(spline, x[idx]);
+end
+
+"""
+    libYukiMathStatisticsIsotonicRegression(
         x::AbstractVector{<:Real}, 
         y::AbstractVector{<:Real};
         weights::Union{AbstractVector{<:Real}, Nothing} = nothing,
@@ -22,7 +54,7 @@ decreasing isotonic regression. Default is `false` (increasing).
 - A vector of estimated `y` values that are monotonically 
 increasing (or decreasing) with respect to `x`.
 """
-function libYukiMathIsotonicRegression(
+function libYukiMathStatisticsIsotonicRegression(
 	x::AbstractVector{<:Real}, 
 	y::AbstractVector{<:Real};
 	weights::Union{AbstractVector{<:Real}, Nothing} = nothing,
@@ -36,10 +68,10 @@ function libYukiMathIsotonicRegression(
                 DimensionMismatch(
                     "weights must have equal length as y and x."
             ))
-    sortedY = isDecreasing ? -y : y;
+    sortedY = 
     idX = sortperm(x);
     sortedX = x[idX];
-    sortedY = sortedY[idX];
+    sortedY = isDecreasing ? -y[idX] : y[idX];
     sortedW = isnothing(weights) ? nothing : weights[idX];
 
     estimateY = isnothing(sortedW) ? 
