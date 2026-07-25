@@ -43,7 +43,6 @@ mutable struct libYukiAstronomyTransitVariation
 	tdvORErr::AbstractVector{<:Real}
 	tdvORIsAcceptable::AbstractVector{Bool}
 	transitDurationRef::Real
-	transitAmplitudeRef::Real
 	transitMidPoints::AbstractVector{<:Real}
     predictedMidPoints::AbstractVector{<:Real}
     libYukiAstronomyTransitVariation(;

@@ -80,6 +80,7 @@ mutable struct libYukiAstronomyBody
     ) = new(name, mass, radius, orbit);
 end
 
+include("libYukiAstronomyKeplerian.jl")
 include("libYukiAstronomyTransit.jl")
 include("libYukiAstronomyTransitLimbDarkening.jl")
 include("libYukiAstronomyTransitVariation.jl")

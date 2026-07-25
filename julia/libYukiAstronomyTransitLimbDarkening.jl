@@ -13,6 +13,16 @@ using Statistics;
 # 	end
 # end
 
+@model function libYukiAstronomyTransitLimbDarkeningDurationTransitFluxModel(
+    time::AbstractArray{<:Real},
+    orbitPeriod::Real,
+    planetTransitDepth::Real,
+    limbDarkeningFunc::AbstractLimbDark,
+    flux::AbstractArray{<:Real}
+)
+
+end
+
 """
 # Model
     libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
@@ -54,20 +64,25 @@ libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
         transit.planet.orbit.period,
         transit.planetTransitDuration,
         transit.planetTransitDepth,
-        lightCurve.flux
+        lightCurve.flux;
+        fluxErr = lightCurve.fluxErr
 );
 @model function libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
     time::AbstractArray{<:Real},
     orbitPeriod::Real,
     planetTransitDuration::Real,
     planetTransitDepth::Real,
-    flux::AbstractArray{<:Real}
+    flux::AbstractArray{<:Real};
+    fluxErr::AbstractArray{<:Real} = fill(0.01, length(flux))
 )
     # Kipping (2013) reparameterization for quadratic limb darkening.
     q1 ~ Uniform(0, 1 - 1e-10)
     q2 ~ Uniform(0, 1 - 1e-10)
+    logJitter ~ Normal(-6, 2)
+
     u1 = 2 * sqrt(q1) * q2;
     u2 = sqrt(q1) * (1 - 2 * q2);
+    totalErr = sqrt.(fluxErr.^2 .+ exp(logJitter)^2);
 
     orbit, limbDarkeningFunc = 
         libYukiAstronomyTransitLimbDarkeningQuadratic(
@@ -81,78 +96,8 @@ libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
         orbit, 
         limbDarkeningFunc
     );
-    for index in eachindex(time)
-        flux[index] ~ Normal(modelLightCurve.flux[index], 0.01)
-    end
-end
 
-"""
-    libYukiAstronomyTransitLimbDarkeningTransitFluxModelMCMCSample(
-        transitFluxModel, 
-        sampler = NUTS(), 
-        modelTuringSamples::Int = 1000
-    )
-Perform MCMC sampling on the given transit flux model using the 
-specified sampler and number of samples.
-# Arguments
-- `transitFluxModel`: A Turing model representing the transit flux.
-- `sampler`: The MCMC sampler to use (default is NUTS).
-- `modelTuringSamples`: The number of samples to draw from the posterior distribution (default is 1000).
-# Returns
-- A `Chains` object containing the MCMC samples from the posterior 
-distribution of the model parameters.
-"""
-function libYukiAstronomyTransitLimbDarkeningTransitFluxModelMCMCSample(
-    transitFluxModel, 
-    sampler = NUTS(), 
-    modelTuringSamples::Int = 1000
-)
-    modelTuringSamples > 0 || 
-    throw(ArgumentError("modelTuringSamples must be a " * 
-        "positive integer."))
-    return sample(
-        transitFluxModel, 
-        sampler, 
-        modelTuringSamples
-    );
-end
-
-"""
-    libYukiAstronomyTransitLimbDarkeningLoadMCMCChains(
-        saveFilePath::String = "TransitLimbDarkeningMCMCChains.jld2"
-    )
-Load the MCMC chains for the transit flux model from a JLD2 file.
-# Arguments
-- `saveFilePath`: The path to the JLD2 file containing the MCMC 
-chains (default is "TransitLimbDarkeningMCMCChains.jld2").
-# Returns
-- A `Chains` object containing the MCMC samples from the 
-posterior distribution of the model parameters.
-"""
-function libYukiAstronomyTransitLimbDarkeningLoadMCMCChains(
-    saveFilePath::String = "TransitLimbDarkeningMCMCChains.jld2"
-)
-    @load saveFilePath transitFluxModelChains;
-    return transitFluxModelChains;
-end
-
-"""
-    libYukiAstronomyTransitLimbDarkeningSaveMCMCChains(
-        transitFluxModelChains::Chains, 
-        saveFilePath::String = "TransitLimbDarkeningMCMCChains.jld2"
-    )
-Save the MCMC chains for the transit flux model to a JLD2 file.
-# Arguments
-- `transitFluxModelChains`: A `Chains` object containing the MCMC 
-samples from the posterior distribution of the model parameters.
-- `saveFilePath`: The path to the JLD2 file where the chains will 
-be saved (default is "TransitLimbDarkeningMCMCChains.jld2").
-"""
-function libYukiAstronomyTransitLimbDarkeningSaveMCMCChains(
-    transitFluxModelChains::Chains, 
-    saveFilePath::String = "TransitLimbDarkeningMCMCChains.jld2"
-)
-    @save saveFilePath transitFluxModelChains;
+    flux ~ MvNormal(modelLightCurve.flux, totalErr)
 end
 
 """

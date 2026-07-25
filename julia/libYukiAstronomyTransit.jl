@@ -107,6 +107,76 @@ end
 include("libYukiAstronomyTransitLimbDarkening.jl")
 include("libYukiAstronomyTransitVariation.jl")
 
+
+"""
+    libYukiAstronomyTransitFluxModelMCMCSample(
+        transitFluxModel, 
+        sampler = NUTS(), 
+        modelTuringSamples::Int = 1000
+    )
+Perform MCMC sampling on the given transit flux model using the 
+specified sampler and number of samples.
+# Arguments
+- `transitFluxModel`: A Turing model representing the transit flux.
+- `sampler`: The MCMC sampler to use (default is NUTS).
+- `modelTuringSamples`: The number of samples to draw from the posterior distribution (default is 1000).
+# Returns
+- A `Chains` object containing the MCMC samples from the posterior 
+distribution of the model parameters.
+"""
+function libYukiAstronomyTransitFluxModelMCMCSample(
+    transitFluxModel, 
+    sampler = NUTS(), 
+    modelTuringSamples::Int = 1000
+)
+    modelTuringSamples > 0 || 
+    throw(ArgumentError("modelTuringSamples must be a " * 
+        "positive integer."))
+    return sample(
+        transitFluxModel, 
+        sampler, 
+        modelTuringSamples
+    );
+end
+
+"""
+    libYukiAstronomyTransitLoadMCMCChains(
+        saveFilePath::String = "transitMCMCChains.jld2"
+    )
+Load the MCMC chains for the transit flux model from a JLD2 file.
+# Arguments
+- `saveFilePath`: The path to the JLD2 file containing the MCMC 
+-- `saveFilePath`: The path to the JLD2 file containing the MCMC 
+chains (default is "transitMCMCChains.jld2").
+- A `Chains` object containing the MCMC samples from the 
+posterior distribution of the model parameters.
+"""
+function libYukiAstronomyTransitLoadMCMCChains(
+    saveFilePath::String = "transitMCMCChains.jld2"
+)
+    @load saveFilePath transitFluxModelChains;
+    return transitFluxModelChains;
+end
+
+"""
+    libYukiAstronomyTransitSaveMCMCChains(
+        transitFluxModelChains::Chains, 
+        saveFilePath::String = "transitMCMCChains.jld2"
+    )
+Save the MCMC chains for the transit flux model to a JLD2 file.
+# Arguments
+- `transitFluxModelChains`: A `Chains` object containing the MCMC 
+samples from the posterior distribution of the model parameters.
+- `saveFilePath`: The path to the JLD2 file where the chains will 
+be saved (default is "transitMCMCChains.jld2").
+"""
+function libYukiAstronomyTransitSaveMCMCChains(
+    transitFluxModelChains::Chains, 
+    saveFilePath::String = "transitMCMCChains.jld2"
+)
+    @save saveFilePath transitFluxModelChains;
+end
+
 """ 
 	libYukiAstronomyTransitInclinationEvaluate(
 		durationRatio::Real,
