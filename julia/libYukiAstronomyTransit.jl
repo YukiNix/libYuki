@@ -705,12 +705,9 @@ libYukiAstronomyTransitTransitDurationEvaluate(
 	transit::libYukiAstronomyTransit
 ) = libYukiAstronomyTransitTransitDurationEvaluate(
 	transit.planet.orbit.period,
-	transit.host.radius * 
-		libYukiConstantValue(libYukiConstantSolarRadius),
-	transit.planet.radius *
-		libYukiConstantValue(libYukiConstantEarthRadius),
-	transit.planet.orbit.semiMajorAxis *
-		libYukiConstantValue(libYukiConstantAstronomicalUnit),
+	transit.host.radius,
+	transit.planet.radius,
+	transit.planet.orbit.semiMajorAxis,
 	transit.planet.orbit.inclination
 );
 function libYukiAstronomyTransitTransitDurationEvaluate(
@@ -718,10 +715,24 @@ function libYukiAstronomyTransitTransitDurationEvaluate(
     stellarRadius::Real,
     planetRadius::Real,
     planetOrbitSemiMajorAxis::Real,
-    planetOrbitInclination::Real,
+    planetOrbitInclination::Real
 )
-    radiusRatio = planetRadius / stellarRadius;
-    scaledSemiMajorAxis = planetOrbitSemiMajorAxis / stellarRadius;
+    radiusRatio = 
+		(
+			planetRadius * 
+			libYukiConstantValue(libYukiConstantEarthRadius)
+		) / (
+			stellarRadius * 
+			libYukiConstantValue(libYukiConstantSolarRadius)
+		);
+    scaledSemiMajorAxis = 
+		(
+			planetOrbitSemiMajorAxis * 
+			libYukiConstantValue(libYukiConstantAstronomicalUnit)
+		) / (
+			stellarRadius * 
+			libYukiConstantValue(libYukiConstantSolarRadius)
+		);
     inclinationSin = sind(planetOrbitInclination);
     impactParameter = scaledSemiMajorAxis * cosd(
 		planetOrbitInclination);
