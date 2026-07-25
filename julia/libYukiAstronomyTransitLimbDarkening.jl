@@ -14,6 +14,134 @@ using Statistics;
 # end
 
 """
+    libYukiAstronomyTransitLimbDarkeningSingleTransitBrent(
+        lightCurve::libYukiAstronomyTransitLightCurve,
+        transit::libYukiAstronomyTransit;
+        fitParam::Symbol = :T0,
+        searchWindow::Real = 0.05,
+        targetDeltaChi2::Real = 1.0,
+        errorStepSize::Real = 1e-4
+    )
+Perform a single transit fit using Brent's method to optimize a specified transit parameter (T0, duration, or depth) based on the provided light curve and transit model. The function returns the best-fit value, associated errors, chi-squared value, and convergence status.
+# Arguments
+- `lightCurve`: An instance of `libYukiAstronomyTransitLightCurve` containing time and flux data.
+- `transit`: An instance of `libYukiAstronomyTransit containing transit parameters.
+- `fitParam`: A symbol indicating which parameter to fit (:T0, :duration, or :depth).
+- `searchWindow`: A real number specifying the search window around the initial parameter value for optimization.
+- `targetDeltaChi2`: A real number specifying the target delta chi-squared value for error estimation.
+- `errorStepSize`: A real number specifying the step size for error estimation.
+# Returns
+- A named tuple containing:
+  - `param`: The fitted parameter symbol.
+  - `value`: The best-fit value of the parameter.
+  - `lowerErr`: The lower error bound for the fitted parameter.
+  - `upperErr`: The upper error bound for the fitted parameter.
+  - `chi2`: The minimum chi-squared value achieved during optimization.
+  - `converged`: A boolean indicating whether the optimization converged successfully.
+"""
+function libYukiAstronomyTransitLimbDarkeningSingleTransitBrent(
+    lightCurve::libYukiAstronomyTransitLightCurve,
+    transit::libYukiAstronomyTransit;
+    fitParam::Symbol = :T0,
+    searchWindow::Real = 0.05,
+    targetDeltaChi2::Real = 1.0,
+    errorStepSize::Real = 1e-4
+)
+
+    objFunction = function(x)
+        t0 = (fitParam == :T0) ? 
+            x : transit.planetTransitCentreTime;
+        duration = (fitParam == :duration) ? 
+            x : transit.planetTransitDuration.value;
+        depth = (fitParam == :depth) ? 
+            x : transit.planetTransitDepth.value;
+
+        timeShifted = lightCurve.time .- (t0 - transit.planetTransitCentreTime);
+
+        try
+            lightCurveModel = 
+                libYukiAstronomyTransitLimbDarkeningTransitFlux(
+                    timeShifted, 
+                    depth, 
+                    SimpleOrbit(
+                        period = transit.planet.orbit.period, 
+                        duration = duration
+                    ), 
+                    transit.limbDarkeningFunc
+                );
+            
+            chi2 = sum(
+                (lightCurve.flux .- lightCurveModel.flux) .^ 2 ./ 
+                lightCurve.fluxErr .^ 2
+            );
+            return chi2;
+        catch
+            return Inf;
+        end
+    end
+
+    lowerBound, upperBound, initValue = if fitParam == :T0
+        (
+            transit.planetTransitCentreTime - searchWindow, 
+            transit.planetTransitCentreTime + searchWindow, 
+            transit.planetTransitCentreTime
+        )
+    elseif fitParam == :duration
+        (
+            max(
+                1e-4, 
+                transit.planetTransitDuration.value * 0.5
+            ), 
+            transit.planetTransitDuration.value * 1.5, 
+            transit.planetTransitDuration.value
+        )
+    elseif fitParam == :depth
+        (
+            max(
+                1e-5, 
+                transit.planetTransitDepth.value * 0.2
+            ), 
+            min(
+                1.0, 
+                transit.planetTransitDepth.value * 2.0
+            ), 
+            transit.planetTransitDepth.value
+        )
+    else
+        error(
+            "Unsupported fitParam: $fitParam. " * 
+            "Choose from :T0, :duration, :depth"
+        )
+    end
+
+    result = optimize(objFunction, lowerBound, upperBound, Brent());
+    bestValue = Optim.minimizer(result);
+    minChi2 = Optim.minimum(result);
+    converged = Optim.converged(result);
+
+    val = bestValue
+    while (objFunction(val) - minChi2) < targetDeltaChi2
+        val += errorStepSize;
+    end
+    upperErr = val - bestValue;
+
+    val = bestValue
+    while (objFunction(val) - minChi2) < targetDeltaChi2
+        val -= errorStepSize
+    end
+    lowerErr = bestValue - val;
+
+    return (
+        param = fitParam,
+        value = bestValue,
+        lowerErr = lowerErr,
+        upperErr = upperErr,
+        chi2 = minChi2,
+        converged = converged
+    );
+end
+
+"""
 # Model
     libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
         lightCurve::libYukiAstronomyTransitLightCurve,

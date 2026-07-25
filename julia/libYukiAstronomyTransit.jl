@@ -119,7 +119,6 @@ end
 include("libYukiAstronomyTransitLimbDarkening.jl")
 include("libYukiAstronomyTransitVariation.jl")
 
-
 """
     libYukiAstronomyTransitFluxModelMCMCSample(
         transitFluxModel, 
