@@ -45,8 +45,8 @@ mutable struct libYukiAstronomyTransit
 	host::libYukiAstronomyBody
 	planet::libYukiAstronomyBody
 	planetTransitCentreTime::Real
-	planetTransitDuration::Real
-	planetTransitDepth::Real
+	planetTransitDuration::libYukiBasicMeasuredValue
+	planetTransitDepth::libYukiBasicMeasuredValue
 	planetTransitChordLength::Real
 	systemDistance::Real
 	limbDarkeningFunc::AbstractLimbDark
@@ -55,7 +55,11 @@ mutable struct libYukiAstronomyTransit
 		planet::libYukiAstronomyBody = libYukiAstronomyBody(),
 		planetTransitCentreTime::Real = NaN,
 		planetTransitDuration::Real = NaN,
+		planetTransitDurationUpperError::Real = NaN,
+		planetTransitDurationLowerErr::Real = NaN,
 		planetTransitDepth::Real = NaN,
+		planetTransitDepthUpperError::Real = NaN,
+		planetTransitDepthLowerError::Real = NaN,
 		planetTransitChordLength::Real = NaN,
 		systemDistance::Real = NaN,
 		limbDarkeningFunc::AbstractLimbDark = QuadLimbDark(
@@ -65,8 +69,16 @@ mutable struct libYukiAstronomyTransit
 		host, 
 		planet, 
 		planetTransitCentreTime, 
-		planetTransitDuration,
-		planetTransitDepth,
+		libYukiBasicMeasuredValue(
+			value = planetTransitDuration,
+			upperErr = planetTransitDurationUpperError,
+			lowerErr = planetTransitDurationLowerErr
+		),
+		libYukiBasicMeasuredValue(
+			value = planetTransitDepth,
+			upperErr = planetTransitDepthUpperError,
+			lowerErr = planetTransitDepthLowerError
+		),
 		planetTransitChordLength,
 		systemDistance,
 		limbDarkeningFunc
@@ -347,7 +359,7 @@ libYukiAstronomyTransitExtractTransitPart(
 	lightCurve,
 	transit.planet.orbit.period,
 	transit.planetTransitCentreTime,
-	transit.planetTransitDuration
+	transit.planetTransitDuration.value
 );
 function libYukiAstronomyTransitExtractTransitPart(
 	lightCurve::libYukiAstronomyTransitLightCurve,
@@ -372,7 +384,7 @@ libYukiAstronomyTransitExtractTransitPart!(
 	lightCurve,
 	transit.planet.orbit.period,
 	transit.planetTransitCentreTime,
-	transit.planetTransitDuration
+	transit.planetTransitDuration.value
 );
 function libYukiAstronomyTransitExtractTransitPart!(
 	lightCurve::libYukiAstronomyTransitLightCurve,
@@ -402,7 +414,7 @@ libYukiAstronomyTransitExtractTransitPart(
 	lightCurvesSplited,
 	transit.planet.orbit.period,
 	transit.planetTransitCentreTime,
-	transit.planetTransitDuration
+	transit.planetTransitDuration.value
 );
 function libYukiAstronomyTransitExtractTransitPart(
 	lightCurveSplited::Vector{libYukiAstronomyTransitLightCurve}, 

@@ -13,16 +13,6 @@ using Statistics;
 # 	end
 # end
 
-@model function libYukiAstronomyTransitLimbDarkeningDurationTransitFluxModel(
-    time::AbstractArray{<:Real},
-    orbitPeriod::Real,
-    planetTransitDepth::Real,
-    limbDarkeningFunc::AbstractLimbDark,
-    flux::AbstractArray{<:Real}
-)
-
-end
-
 """
 # Model
     libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
@@ -58,26 +48,38 @@ noise parameters.
 """
 libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
     lightCurve::libYukiAstronomyTransitLightCurve,
-    transit::libYukiAstronomyTransit
+    transit::libYukiAstronomyTransit;
+    transitDurationSigma = 0.2,
+    transitDepthSigma = 0.2
 ) = libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
         lightCurve.time,
         transit.planet.orbit.period,
-        transit.planetTransitDuration,
-        transit.planetTransitDepth,
         lightCurve.flux;
+        planetTransitDuration = Truncated(
+            Normal(
+                transit.planetTransitDuration.value, 
+                transitDurationSigma * transit.planetTransitDuration.value), 0.0, Inf),
+        planetTransitDepth = Truncated(
+            Normal(
+                transit.planetTransitDepth.value, 
+                transitDepthSigma * transit.planetTransitDepth.value), 0.0, Inf),
         fluxErr = lightCurve.fluxErr
 );
 @model function libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
     time::AbstractArray{<:Real},
     orbitPeriod::Real,
-    planetTransitDuration::Real,
-    planetTransitDepth::Real,
     flux::AbstractArray{<:Real};
-    fluxErr::AbstractArray{<:Real} = fill(0.01, length(flux))
+    fluxErr::AbstractArray{<:Real} = fill(0.01, length(flux)),
+    planetTransitDuration = Uniform(0.0, orbitPeriod / 2),
+    planetTransitDepth = Uniform(0.0, 1.0)
 )
     # Kipping (2013) reparameterization for quadratic limb darkening.
     q1 ~ Uniform(0, 1 - 1e-10)
     q2 ~ Uniform(0, 1 - 1e-10)
+
+    duration ~ planetTransitDuration
+    depth ~ planetTransitDepth
+
     logJitter ~ Normal(-6, 2)
 
     u1 = 2 * sqrt(q1) * q2;
@@ -87,12 +89,12 @@ libYukiAstronomyTransitLimbDarkeningQuadraticTransitFluxModel(
     orbit, limbDarkeningFunc = 
         libYukiAstronomyTransitLimbDarkeningQuadratic(
             orbitPeriod, 
-            planetTransitDuration, 
+            duration, 
             [u1, u2]
         );
     modelLightCurve = libYukiAstronomyTransitLimbDarkeningTransitFlux(
         time, 
-        planetTransitDepth,
+        depth,
         orbit, 
         limbDarkeningFunc
     );
@@ -142,7 +144,7 @@ libYukiAstronomyTransitLimbDarkeningTransitFlux!(
     transit.planetTransitDepth,
     SimpleOrbit(
         period = transit.planet.orbit.period,
-        duration = transit.planetTransitDuration
+        duration = transit.planetTransitDuration.value
     ),
     transit.limbDarkeningFunc
 );
@@ -208,7 +210,7 @@ function libYukiAstronomyTransitLimbDarkeningPolynomial(
     orbit, transit.limbDarkeningFunc = 
         libYukiAstronomyTransitLimbDarkeningPolynomial(
             transit.planet.orbit.period,
-            transit.planetTransitDuration,
+            transit.planetTransitDuration.value,
             limbPolynomialDarkeningParameters
         );
     return orbit, transit.limbDarkeningFunc;
@@ -265,7 +267,7 @@ function libYukiAstronomyTransitLimbDarkeningQuadratic(
     orbit, transit.limbDarkeningFunc = 
         libYukiAstronomyTransitLimbDarkeningQuadratic(
             transit.planet.orbit.period,
-            transit.planetTransitDuration,
+            transit.planetTransitDuration.value,
             chain
         );
     return orbit, transit.limbDarkeningFunc;
@@ -277,7 +279,7 @@ function libYukiAstronomyTransitLimbDarkeningQuadratic(
     orbit, transit.limbDarkeningFunc =  
         libYukiAstronomyTransitLimbDarkeningQuadratic(
             transit.planet.orbit.period,
-            transit.planetTransitDuration,
+            transit.planetTransitDuration.value,
             limbQuadraticDarkeningParameters
         );
     return orbit, transit.limbDarkeningFunc;

@@ -1,4 +1,4 @@
-using Optim, JLD2
+using Optim, JLD2, Distributions
 
 include("libYukiAstronomyTransitLimbDarkening.jl")
 
@@ -178,7 +178,7 @@ function libYukiAstronomyTransitVariationTDVCorrectLightCurve!(
 		mask = abs.(originalTime .- transitMidTime) .<
 			0.5 * transit.planet.orbit.period;
 		durationScale = 1 +
-			(variation.tdvOR[index] / transit.planetTransitDuration);
+			(variation.tdvOR[index] / transit.planetTransitDuration.value);
 		lightCurveTTVCorrected.time[mask] .= transitMidTime .+
 			(originalTime[mask] .- transitMidTime) ./ durationScale;
 	end
@@ -241,7 +241,7 @@ function libYukiAstronomyTransitVariationTDVORBrent(
 			profilePointCount = profilePointCount
 		);
 	end
-	transit.planetTransitDuration = variation.transitDurationRef;
+	transit.planetTransitDuration.value = variation.transitDurationRef;
 
 	lightCurvesSplited = libYukiAstronomyTransitSplitLightCurveByPeriod(
 		lightCurveTTVCorrected,
@@ -339,7 +339,7 @@ function libYukiAstronomyTransitVariationDurationBrent(
 	profilePointCount::Integer = 101,
 	updateTransitDuration::Bool = false
 )
-	durationInitial = transit.planetTransitDuration;
+	durationInitial = transit.planetTransitDuration.value;
 	hasFluxErr = lightCurve.fluxErr !== nothing &&
 		!isempty(lightCurve.fluxErr);
 	if hasFluxErr
@@ -430,7 +430,7 @@ function libYukiAstronomyTransitVariationDurationBrent(
 				durationGrid[last(leftIndices)]
 		) / 2;
 	if updateTransitDuration
-		transit.planetTransitDuration = durationRef;
+		transit.planetTransitDuration.value = durationRef;
 	end
 
 	return durationRef, durationErr;
@@ -689,12 +689,12 @@ libYukiAstronomyTransitVariationTTVOCBrent(
 ) = libYukiAstronomyTransitVariationTTVOCBrent(
 	lightCurvesSplited,
 	transit.planet.orbit.period,
-	transit.planetTransitDuration,
+	transit.planetTransitDuration.value,
 	transit.planetTransitCentreTime,
-	transit.planetTransitDepth,
+	transit.planetTransitDepth.value,
 	SimpleOrbit(
 		period = transit.planet.orbit.period, 
-		duration = transit.planetTransitDuration
+		duration = transit.planetTransitDuration.value
 	),
 	transit.limbDarkeningFunc;
 	ocMeasurementLengthDurations = ocMeasurementLengthDurations,
