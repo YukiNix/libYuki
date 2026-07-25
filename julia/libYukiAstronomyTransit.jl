@@ -107,6 +107,80 @@ end
 include("libYukiAstronomyTransitLimbDarkening.jl")
 include("libYukiAstronomyTransitVariation.jl")
 
+""" 
+	libYukiAstronomyTransitInclinationEvaluate(
+		durationRatio::Real,
+		transit::libYukiAstronomyTransit
+	)
+	libYukiAstronomyTransitInclinationEvaluate(
+		transitDuration::Real,
+		transitEvaluatedDuration::Real,
+		transit::libYukiAstronomyTransit
+	)
+	libYukiAstronomyTransitInclinationEvaluate(
+		planetTransitDuration::Real, 
+		evaluatedTransitDuration::Real,
+		planetRadius::Real,
+		stellarRadius::Real,
+		planetOrbitSemiMajorAxis::Real
+	)
+Evaluate the inclination of a planet's orbit based on the transit duration and other relevant parameters.
+# Arguments
+- `durationRatio`: The ratio of the observed transit duration to the evaluated transit duration.
+- `transit`: An instance of `libYukiAstronomyTransit` containing the relevant parameters for the transit.
+- `transitDuration`: The observed transit duration.
+- `transitEvaluatedDuration`: The evaluated transit duration based on the planet's orbital parameters.
+- `planetTransitDuration`: The observed transit duration of the planet.
+- `evaluatedTransitDuration`: The evaluated transit duration based on the planet's orbital parameters.
+- `planetRadius`: The radius of the planet.
+- `stellarRadius`: The radius of the host star.
+- `planetOrbitSemiMajorAxis`: The semi-major axis of the planet's orbit.
+# Returns
+- The inclination of the planet's orbit in degrees.
+"""
+libYukiAstronomyTransitInclinationEvaluate(
+	durationRatio::Real,
+	transit::libYukiAstronomyTransit
+) = libYukiAstronomyTransitInclinationEvaluate(
+	durationRatio, 1, transit
+);
+libYukiAstronomyTransitInclinationEvaluate(
+	transitDuration::Real,
+	transitEvaluatedDuration::Real,
+	transit::libYukiAstronomyTransit
+) = libYukiAstronomyTransitInclinationEvaluate(
+	transitDuration, 
+	transitEvaluatedDuration, 
+	transit.planet.radius, 
+	transit.host.radius, 
+	transit.planet.orbit.semiMajorAxis
+);
+function libYukiAstronomyTransitInclinationEvaluate(
+	planetTransitDuration::Real, 
+	evaluatedTransitDuration::Real,
+	planetRadius::Real,
+	stellarRadius::Real,
+	planetOrbitSemiMajorAxis::Real
+)
+	planetRadiusSIUnit = planetRadius * 
+		libYukiConstantValue(libYukiConstantEarthRadius);
+	stellarRadiusSIUnit = stellarRadius *
+		libYukiConstantValue(libYukiConstantSolarRadius);
+	orbitSemiMajorAxisSIUnit = planetOrbitSemiMajorAxis * 
+		libYukiConstantValue(libYukiConstantAstronomicalUnit);
+	durationRatio = planetTransitDuration / evaluatedTransitDuration;
+
+	semiMajorAxis2sinInclination2 = 
+		stellarRadiusSIUnit ^ 2 - (
+			durationRatio * 
+				(stellarRadiusSIUnit + planetRadiusSIUnit) - 
+			planetRadiusSIUnit
+		) ^ 2;
+	sinInclination = sqrt(semiMajorAxis2sinInclination2) / 
+		orbitSemiMajorAxisSIUnit;
+	return 90.0 - (asin(sinInclination) * 180 / π);
+end
+
 """
 	libYukiAstronomyTransitLoadTransit(
 		filePath::String
